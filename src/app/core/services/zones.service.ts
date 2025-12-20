@@ -28,7 +28,8 @@ export class ZonesService {
     if (filters?.isActive !== undefined) {
       params.isActive = filters.isActive.toString();
     }
-    return this.http.get<ZonesResponse>(this.API_URL, { params });
+    // Use admin endpoint for filtered zones based on operator's assigned zones
+    return this.http.get<ZonesResponse>(`${this.API_URL}/admin`, { params });
   }
 
   getById(id: string): Observable<ZoneResponse> {

@@ -15,7 +15,7 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  // Parking Zones
+  // Parking Zones (admin endpoint - filtered by operator's zones)
   getParkingZones(): Observable<{
     count: number;
     data: ParkingZone[];
@@ -25,7 +25,7 @@ export class ApiService {
       count: number;
       data: ParkingZone[];
       success: boolean;
-    }>(`${this.apiUrl}/zones`);
+    }>(`${this.apiUrl}/zones/admin`);
   }
 
   getParkingZone(id: string): Observable<ParkingZone> {
