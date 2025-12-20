@@ -1,9 +1,20 @@
 <div class="editor-container">
+  <!-- Mobile Toggle Button -->
+  <button class="sidebar-toggle" (click)="sidebarOpen = !sidebarOpen" [class.open]="sidebarOpen">
+    <span class="toggle-icon"></span>
+  </button>
+
+  <!-- Mobile Backdrop -->
+  @if (sidebarOpen) {
+    <div class="sidebar-backdrop" (click)="sidebarOpen = false"></div>
+  }
+
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.open]="sidebarOpen">
     <div class="sidebar-header">
       <h1>ParkUp Admin</h1>
       <p>Editeur de rues</p>
+      <button class="close-sidebar" (click)="sidebarOpen = false">&times;</button>
     </div>
 
     <!-- Zone Selector -->

@@ -57,10 +57,11 @@ export class StreetsEditorComponent
 
   isLoading = false;
   isSaving = false;
+  sidebarOpen = false;
   message: { type: 'success' | 'error'; text: string } | null = null;
 
   readonly streetTypes = [
-    { value: StreetType.FREE, label: 'Gratuit', color: '#FFFFFF' },
+    { value: StreetType.FREE, label: 'Gratuit', color: '#4CAF50' },
     { value: StreetType.PAYABLE, label: 'Payant', color: '#2196F3' },
     { value: StreetType.PROHIBITED, label: 'Interdit', color: '#F44336' },
   ];

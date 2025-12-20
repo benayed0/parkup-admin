@@ -1,5 +1,52 @@
-/* Global Styles */
+/* Global Styles - ParkUp Theme (Light Mode) */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Primary Colors */
+  --color-primary: #0F172A;
+  --color-secondary: #2563EB;
+  --color-success: #22C55E;
+
+  /* Background Colors (Light Mode) */
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-variant: #F1F5F9;
+
+  /* Text Colors */
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #64748B;
+  --color-text-tertiary: #94A3B8;
+  --color-text-on-primary: #FFFFFF;
+
+  /* Status Colors */
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+  --color-info: #3B82F6;
+
+  /* Border Colors */
+  --color-border: #E2E8F0;
+  --color-border-focused: #2563EB;
+
+  /* Light Mode Theme Variables */
+  --app-background: #F8FAFC;
+  --app-surface: #FFFFFF;
+  --app-surface-variant: #F1F5F9;
+  --app-border: #E2E8F0;
+  --app-text-primary: #0F172A;
+  --app-text-secondary: #64748B;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
 
 * {
   margin: 0;
@@ -9,10 +56,29 @@
 
 html,
 body {
-  height: 100%;
+  min-height: 100%;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: #0f0f23;
-  color: #fff;
-  overflow: hidden;
+  background: var(--app-background);
+  color: var(--app-text-primary);
+  line-height: 1.5;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--app-surface-variant);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--app-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
 }
