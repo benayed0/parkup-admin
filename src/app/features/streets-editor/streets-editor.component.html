@@ -1,0 +1,122 @@
+<div class="editor-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>ParkUp Admin</h1>
+      <p>Editeur de rues</p>
+    </div>
+
+    <!-- Zone Selector -->
+    <div class="section">
+      <label for="zone-select">Zone de stationnement</label>
+      <select
+        id="zone-select"
+        [disabled]="isLoading"
+        (change)="onZoneSelected($any($event.target).value)"
+      >
+        <option value="">-- Sélectionner une zone --</option>
+        @for (zone of zones; track zone._id) {
+          <option [value]="zone._id">{{ zone.code }} - {{ zone.name }}</option>
+        }
+      </select>
+    </div>
+
+    @if (selectedZone) {
+      <!-- Street Type Selector -->
+      <div class="section">
+        <label>Type de rue à dessiner</label>
+        <div class="street-types">
+          @for (type of streetTypes; track type.value) {
+            <button
+              class="type-btn"
+              [class.active]="selectedStreetType === type.value"
+              [style.border-color]="type.color"
+              [style.background-color]="selectedStreetType === type.value ? type.color : 'transparent'"
+              (click)="selectedStreetType = type.value; onStreetTypeChange()"
+            >
+              <span
+                class="color-dot"
+                [style.background-color]="type.color"
+              ></span>
+              {{ type.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Statistics -->
+      <div class="section stats">
+        <div class="stat">
+          <span class="stat-value">{{ getExistingStreetsCount() }}</span>
+          <span class="stat-label">Rues existantes</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ getNewStreetsCount() }}</span>
+          <span class="stat-label">Nouvelles rues</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="section actions">
+        <button
+          class="btn btn-primary"
+          [disabled]="isSaving || getNewStreetsCount() === 0"
+          (click)="saveStreets()"
+        >
+          @if (isSaving) {
+            Sauvegarde...
+          } @else {
+            Sauvegarder ({{ getNewStreetsCount() }})
+          }
+        </button>
+
+        <button
+          class="btn btn-secondary"
+          [disabled]="drawnStreets.length === 0"
+          (click)="clearMap()"
+        >
+          Effacer la carte
+        </button>
+
+        <button
+          class="btn btn-danger"
+          [disabled]="isSaving || getExistingStreetsCount() === 0"
+          (click)="deleteAllStreets()"
+        >
+          Supprimer tout
+        </button>
+      </div>
+
+      <!-- Instructions -->
+      <div class="section instructions">
+        <h3>Instructions</h3>
+        <ol>
+          <li>Sélectionnez le type de rue</li>
+          <li>Cliquez sur l'icône ligne dans la carte</li>
+          <li>Dessinez la rue point par point</li>
+          <li>Double-cliquez pour terminer</li>
+          <li>Sauvegardez vos modifications</li>
+        </ol>
+      </div>
+    }
+
+    <!-- Message -->
+    @if (message) {
+      <div class="message" [class]="message.type">
+        {{ message.text }}
+      </div>
+    }
+  </aside>
+
+  <!-- Map -->
+  <main class="map-container">
+    <div id="map"></div>
+
+    @if (isLoading) {
+      <div class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Chargement...</p>
+      </div>
+    }
+  </main>
+</div>
