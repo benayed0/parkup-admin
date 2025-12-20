@@ -23,11 +23,12 @@
       <select
         id="zone-select"
         [disabled]="isLoading"
+        [value]="selectedZone?._id || ''"
         (change)="onZoneSelected($any($event.target).value)"
       >
         <option value="">-- Sélectionner une zone --</option>
         @for (zone of zones; track zone._id) {
-          <option [value]="zone._id">{{ zone.code }} - {{ zone.name }}</option>
+          <option [value]="zone._id" [selected]="selectedZone?._id === zone._id">{{ zone.code }} - {{ zone.name }}</option>
         }
       </select>
     </div>

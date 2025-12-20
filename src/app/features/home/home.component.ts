@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { forkJoin } from 'rxjs';
 
@@ -17,7 +16,7 @@ interface DashboardStats {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule],
   template: `
     <div class="home">
       <header class="page-header">
@@ -120,42 +119,6 @@ interface DashboardStats {
             </div>
           </div>
         </div>
-
-        <!-- Quick Actions -->
-        <section class="quick-actions">
-          <h2>Actions rapides</h2>
-          <div class="actions-grid">
-            <a routerLink="/agents" class="action-card">
-              <div class="action-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="9" cy="7" r="4"></circle>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-              </div>
-              <span>Gérer les agents</span>
-            </a>
-            <a routerLink="/tickets" class="action-card">
-              <div class="action-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-              </div>
-              <span>Voir les tickets</span>
-            </a>
-            <a routerLink="/streets" class="action-card">
-              <div class="action-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-              </div>
-              <span>Editeur de rues</span>
-            </a>
-          </div>
-        </section>
       }
     </div>
   `,
@@ -294,61 +257,6 @@ interface DashboardStats {
 
     .stat-sub.danger {
       color: var(--color-error);
-    }
-
-    .quick-actions {
-      margin-top: var(--spacing-xl);
-    }
-
-    .quick-actions h2 {
-      font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--app-text-primary);
-      margin: 0 0 var(--spacing-lg);
-    }
-
-    .actions-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: var(--spacing-md);
-    }
-
-    .action-card {
-      background: var(--app-surface);
-      border: 1px solid var(--app-border);
-      border-radius: var(--radius-md);
-      padding: var(--spacing-lg);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: var(--spacing-md);
-      text-decoration: none;
-      color: var(--app-text-primary);
-      transition: all 0.2s ease;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .action-card:hover {
-      border-color: var(--color-secondary);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
-    }
-
-    .action-icon {
-      width: 48px;
-      height: 48px;
-      background: rgba(37, 99, 235, 0.1);
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--color-secondary);
-    }
-
-    .action-card span {
-      font-size: 0.875rem;
-      font-weight: 500;
-      text-align: center;
     }
 
     @media (max-width: 768px) {

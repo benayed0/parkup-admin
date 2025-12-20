@@ -2,7 +2,6 @@ import { ParkingZone } from './parking-zone.model';
 
 export interface Agent {
   _id: string;
-  agentCode: string;
   name: string;
   username: string;
   phone?: string;
@@ -13,7 +12,6 @@ export interface Agent {
 }
 
 export interface CreateAgentDto {
-  agentCode: string;
   name: string;
   username: string;
   phone?: string;
@@ -23,7 +21,6 @@ export interface CreateAgentDto {
 }
 
 export interface UpdateAgentDto {
-  agentCode?: string;
   name?: string;
   username?: string;
   phone?: string;

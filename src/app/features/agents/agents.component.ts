@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { Agent } from '../../core/models/agent.model';
+import { ZoneSelectorComponent } from '../../shared/components/zone-selector/zone-selector.component';
 
 @Component({
   selector: 'app-agents',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ZoneSelectorComponent],
   template: `
     <div class="agents-page">
       <header class="page-header">
@@ -54,7 +55,6 @@ import { Agent } from '../../core/models/agent.model';
           <table class="data-table">
             <thead>
               <tr>
-                <th>Code</th>
                 <th>Nom</th>
                 <th>Username</th>
                 <th>Téléphone</th>
@@ -66,7 +66,6 @@ import { Agent } from '../../core/models/agent.model';
             <tbody>
               @for (agent of filteredAgents; track agent._id) {
                 <tr>
-                  <td class="code">{{ agent.agentCode }}</td>
                   <td>{{ agent.name }}</td>
                   <td class="username">{{ agent.username }}</td>
                   <td>{{ agent.phone || '-' }}</td>
@@ -83,21 +82,12 @@ import { Agent } from '../../core/models/agent.model';
                     </span>
                   </td>
                   <td class="actions">
-                    @if (agent.isActive) {
-                      <button class="btn-icon" title="Désactiver" (click)="toggleAgent(agent)">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <circle cx="12" cy="12" r="10"></circle>
-                          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                        </svg>
-                      </button>
-                    } @else {
-                      <button class="btn-icon success" title="Activer" (click)="toggleAgent(agent)">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
-                      </button>
-                    }
+                    <button class="btn-icon" title="Modifier" (click)="openEditModal(agent)">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                    </button>
                     <button class="btn-icon danger" title="Supprimer" (click)="deleteAgent(agent)">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -108,7 +98,7 @@ import { Agent } from '../../core/models/agent.model';
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="7" class="empty">Aucun agent trouvé</td>
+                  <td colspan="6" class="empty">Aucun agent trouvé</td>
                 </tr>
               }
             </tbody>
@@ -130,10 +120,6 @@ import { Agent } from '../../core/models/agent.model';
             </div>
             <form (ngSubmit)="createAgent()">
               <div class="form-group">
-                <label>Code agent *</label>
-                <input type="text" [(ngModel)]="newAgent.agentCode" name="agentCode" required placeholder="AGT001" />
-              </div>
-              <div class="form-group">
                 <label>Nom complet *</label>
                 <input type="text" [(ngModel)]="newAgent.name" name="name" required placeholder="Jean Dupont" />
               </div>
@@ -143,16 +129,100 @@ import { Agent } from '../../core/models/agent.model';
               </div>
               <div class="form-group">
                 <label>Mot de passe *</label>
-                <input type="password" [(ngModel)]="newAgent.password" name="password" required minlength="6" placeholder="Min. 6 caractères" />
+                <div class="password-input-group">
+                  <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="newAgent.password" name="password" required minlength="6" placeholder="Min. 6 caractères" />
+                  <button type="button" class="btn-icon-sm" (click)="showPassword = !showPassword" title="Afficher/Masquer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      @if (showPassword) {
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                      } @else {
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      }
+                    </svg>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-secondary" (click)="generatePassword()" title="Générer un mot de passe">
+                    Générer
+                  </button>
+                </div>
               </div>
               <div class="form-group">
                 <label>Téléphone</label>
                 <input type="tel" [(ngModel)]="newAgent.phone" name="phone" placeholder="+212 6XX XXX XXX" />
               </div>
+              <div class="form-group">
+                <app-zone-selector
+                  [(selectedZoneIds)]="newAgentZones"
+                ></app-zone-selector>
+              </div>
               <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">Annuler</button>
                 <button type="submit" class="btn btn-primary" [disabled]="isSaving">
                   {{ isSaving ? 'Création...' : 'Créer' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      }
+
+      <!-- Edit Modal -->
+      @if (showEditModal && editAgent) {
+        <div class="modal-overlay" (click)="closeEditModal()">
+          <div class="modal" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <h2>Modifier l'agent</h2>
+              <button class="close-btn" (click)="closeEditModal()">&times;</button>
+            </div>
+            <form (ngSubmit)="updateAgent()">
+              <div class="form-group">
+                <label>Nom complet *</label>
+                <input type="text" [(ngModel)]="editAgent.name" name="editName" required placeholder="Jean Dupont" />
+              </div>
+              <div class="form-group">
+                <label>Username *</label>
+                <input type="text" [(ngModel)]="editAgent.username" name="editUsername" required placeholder="jean.dupont" />
+              </div>
+              <div class="form-group">
+                <label>Téléphone</label>
+                <input type="tel" [(ngModel)]="editAgent.phone" name="editPhone" placeholder="+212 6XX XXX XXX" />
+              </div>
+              <div class="form-group">
+                <label>Nouveau mot de passe</label>
+                <div class="password-input-group">
+                  <input [type]="showEditPassword ? 'text' : 'password'" [(ngModel)]="editPassword" name="editPassword" minlength="6" placeholder="Laisser vide pour ne pas changer" />
+                  <button type="button" class="btn-icon-sm" (click)="showEditPassword = !showEditPassword" title="Afficher/Masquer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      @if (showEditPassword) {
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                      } @else {
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      }
+                    </svg>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-secondary" (click)="generateEditPassword()" title="Générer un mot de passe">
+                    Générer
+                  </button>
+                </div>
+              </div>
+              <div class="form-group">
+                <app-zone-selector
+                  [(selectedZoneIds)]="editAgentZones"
+                ></app-zone-selector>
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" [(ngModel)]="editAgent.isActive" name="editIsActive" />
+                  Agent actif
+                </label>
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" (click)="closeEditModal()">Annuler</button>
+                <button type="submit" class="btn btn-primary" [disabled]="isSaving">
+                  {{ isSaving ? 'Enregistrement...' : 'Enregistrer' }}
                 </button>
               </div>
             </form>
@@ -505,6 +575,55 @@ import { Agent } from '../../core/models/agent.model';
       border-color: var(--color-secondary);
     }
 
+    .password-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .password-input-group input {
+      flex: 1;
+    }
+
+    .btn-icon-sm {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--app-border);
+      border-radius: var(--radius-sm);
+      background: var(--app-surface);
+      color: var(--app-text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .btn-icon-sm:hover {
+      background: var(--app-surface-variant);
+      color: var(--app-text-primary);
+    }
+
+    .btn-sm {
+      padding: 8px 12px;
+      font-size: 0.813rem;
+      flex-shrink: 0;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--app-text-primary);
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
     .modal-actions {
       display: flex;
       gap: 12px;
@@ -579,13 +698,20 @@ export class AgentsComponent implements OnInit {
   searchQuery = '';
 
   showCreateModal = false;
+  showPassword = false;
   newAgent = {
-    agentCode: '',
     name: '',
     username: '',
     password: '',
     phone: '',
   };
+  newAgentZones: string[] = [];
+
+  showEditModal = false;
+  showEditPassword = false;
+  editAgent: { _id: string; name: string; username: string; phone: string; isActive: boolean } | null = null;
+  editPassword = '';
+  editAgentZones: string[] = [];
 
   message: { type: 'success' | 'error'; text: string } | null = null;
 
@@ -629,20 +755,21 @@ export class AgentsComponent implements OnInit {
     this.filteredAgents = this.agents.filter(
       (agent) =>
         agent.name.toLowerCase().includes(query) ||
-        agent.agentCode.toLowerCase().includes(query) ||
-        agent.username.toLowerCase().includes(query)
+        agent.username.toLowerCase().includes(query) ||
+        (agent.phone && agent.phone.toLowerCase().includes(query))
     );
   }
 
   openCreateModal(): void {
     this.showCreateModal = true;
+    this.showPassword = false;
     this.newAgent = {
-      agentCode: '',
       name: '',
       username: '',
       password: '',
       phone: '',
     };
+    this.newAgentZones = [];
   }
 
   closeCreateModal(): void {
@@ -650,13 +777,22 @@ export class AgentsComponent implements OnInit {
   }
 
   createAgent(): void {
-    if (!this.newAgent.agentCode || !this.newAgent.name || !this.newAgent.username || !this.newAgent.password) {
+    if (!this.newAgent.name || !this.newAgent.username || !this.newAgent.password) {
       this.showMessage('error', 'Veuillez remplir tous les champs obligatoires');
       return;
     }
 
+    if (this.newAgent.password.length < 6) {
+      this.showMessage('error', 'Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
     this.isSaving = true;
-    this.apiService.createAgent(this.newAgent).subscribe({
+    const createData = {
+      ...this.newAgent,
+      assignedZones: this.newAgentZones.length > 0 ? this.newAgentZones : undefined,
+    };
+    this.apiService.createAgent(createData).subscribe({
       next: ({ data }) => {
         this.agents.unshift(data);
         this.filterAgents();
@@ -672,25 +808,101 @@ export class AgentsComponent implements OnInit {
     });
   }
 
-  toggleAgent(agent: Agent): void {
-    const action = agent.isActive
-      ? this.apiService.deactivateAgent(agent._id)
-      : this.apiService.activateAgent(agent._id);
+  openEditModal(agent: Agent): void {
+    this.editAgent = {
+      _id: agent._id,
+      name: agent.name,
+      username: agent.username,
+      phone: agent.phone || '',
+      isActive: agent.isActive,
+    };
+    // Extract zone IDs from populated zones
+    this.editAgentZones = agent.assignedZones?.map(z =>
+      typeof z === 'string' ? z : z._id
+    ) || [];
+    this.editPassword = '';
+    this.showEditPassword = false;
+    this.showEditModal = true;
+  }
 
-    action.subscribe({
+  closeEditModal(): void {
+    this.showEditModal = false;
+    this.editAgent = null;
+    this.editPassword = '';
+    this.editAgentZones = [];
+  }
+
+  updateAgent(): void {
+    if (!this.editAgent || !this.editAgent.name || !this.editAgent.username) {
+      this.showMessage('error', 'Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    if (this.editPassword && this.editPassword.length < 6) {
+      this.showMessage('error', 'Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    this.isSaving = true;
+    const updateData: any = {
+      name: this.editAgent.name,
+      username: this.editAgent.username,
+      phone: this.editAgent.phone || undefined,
+      isActive: this.editAgent.isActive,
+      assignedZones: this.editAgentZones,
+    };
+
+    // First update the agent info
+    this.apiService.updateAgent(this.editAgent._id, updateData).subscribe({
       next: ({ data }) => {
-        const index = this.agents.findIndex((a) => a._id === agent._id);
-        if (index !== -1) {
-          this.agents[index] = data;
-          this.filterAgents();
+        // If password was provided, reset it
+        if (this.editPassword) {
+          this.apiService.resetAgentPassword(this.editAgent!._id, this.editPassword).subscribe({
+            next: () => {
+              this.updateAgentInList(data);
+              this.closeEditModal();
+              this.showMessage('success', 'Agent modifié avec succès');
+              this.isSaving = false;
+            },
+            error: (err) => {
+              console.error('Error resetting password:', err);
+              this.updateAgentInList(data);
+              this.closeEditModal();
+              this.showMessage('error', 'Agent modifié mais erreur lors du changement de mot de passe');
+              this.isSaving = false;
+            },
+          });
+        } else {
+          this.updateAgentInList(data);
+          this.closeEditModal();
+          this.showMessage('success', 'Agent modifié avec succès');
+          this.isSaving = false;
         }
-        this.showMessage('success', `Agent ${data.isActive ? 'activé' : 'désactivé'}`);
       },
       error: (err) => {
-        console.error('Error toggling agent:', err);
-        this.showMessage('error', 'Erreur lors de la modification');
+        console.error('Error updating agent:', err);
+        this.showMessage('error', err.error?.message || 'Erreur lors de la modification');
+        this.isSaving = false;
       },
     });
+  }
+
+  private updateAgentInList(updatedAgent: Agent): void {
+    const index = this.agents.findIndex((a) => a._id === updatedAgent._id);
+    if (index !== -1) {
+      this.agents[index] = updatedAgent;
+      this.filterAgents();
+    }
+  }
+
+  generateEditPassword(): void {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    this.editPassword = password;
+    this.showEditPassword = true;
   }
 
   deleteAgent(agent: Agent): void {
@@ -709,6 +921,16 @@ export class AgentsComponent implements OnInit {
         this.showMessage('error', 'Erreur lors de la suppression');
       },
     });
+  }
+
+  generatePassword(): void {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    this.newAgent.password = password;
+    this.showPassword = true;
   }
 
   private showMessage(type: 'success' | 'error', text: string): void {

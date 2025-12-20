@@ -51,7 +51,7 @@ export class StreetsEditorComponent
 
   zones: ParkingZone[] = [];
   selectedZone: ParkingZone | null = null;
-  selectedStreetType: StreetType = StreetType.FREE;
+  selectedStreetType: StreetType = StreetType.PAYABLE;
   drawnStreets: DrawnStreet[] = [];
   existingStreets: Street[] = [];
 
@@ -61,7 +61,6 @@ export class StreetsEditorComponent
   message: { type: 'success' | 'error'; text: string } | null = null;
 
   readonly streetTypes = [
-    { value: StreetType.FREE, label: 'Gratuit', color: '#4CAF50' },
     { value: StreetType.PAYABLE, label: 'Payant', color: '#2196F3' },
     { value: StreetType.PROHIBITED, label: 'Interdit', color: '#F44336' },
   ];
@@ -164,6 +163,11 @@ export class StreetsEditorComponent
       next: ({ data }) => {
         this.zones = data.filter((z) => z.isActive);
         this.isLoading = false;
+
+        // Auto-select if only one zone available
+        if (this.zones.length === 1) {
+          this.onZoneSelected(this.zones[0]._id);
+        }
       },
       error: (err) => {
         console.error('Error loading zones:', err);

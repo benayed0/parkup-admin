@@ -143,6 +143,16 @@ export class ApiService {
     return this.http.delete<void>(`${this.apiUrl}/agents/${id}`);
   }
 
+  resetAgentPassword(
+    id: string,
+    newPassword: string
+  ): Observable<{ success: boolean; message: string }> {
+    return this.http.patch<{ success: boolean; message: string }>(
+      `${this.apiUrl}/agents/${id}/reset-password`,
+      { newPassword }
+    );
+  }
+
   // ==================== TICKETS ====================
 
   getTickets(params?: {
