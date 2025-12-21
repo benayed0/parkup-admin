@@ -58,25 +58,30 @@ import { AuthService } from '../../core/services/auth.service';
             </div>
 
             <div class="form-group">
-              <label for="otp">Code OTP</label>
-              <input
-                type="text"
-                id="otp"
-                [(ngModel)]="otp"
-                name="otp"
-                placeholder="1234"
-                maxlength="6"
-                required
-                [disabled]="isLoading"
-                class="otp-input"
-              />
+              <label>Code OTP</label>
+              <div class="otp-boxes">
+                @for (i of [0, 1, 2, 3]; track i) {
+                  <input
+                    type="text"
+                    [id]="'otp-' + i"
+                    maxlength="1"
+                    [value]="otpDigits[i]"
+                    (input)="onOtpInput($event, i)"
+                    (keydown)="onOtpKeydown($event, i)"
+                    (paste)="onOtpPaste($event)"
+                    [disabled]="isLoading"
+                    class="otp-box"
+                    autocomplete="off"
+                  />
+                }
+              </div>
             </div>
 
             @if (error) {
               <div class="error-message">{{ error }}</div>
             }
 
-            <button type="submit" class="btn btn-primary" [disabled]="isLoading || !otp">
+            <button type="submit" class="btn btn-primary" [disabled]="isLoading || otp.length !== 4">
               @if (isLoading) {
                 <span class="spinner-small"></span>
                 Verification...
@@ -179,11 +184,36 @@ import { AuthService } from '../../core/services/auth.service';
       cursor: not-allowed;
     }
 
-    .otp-input {
+    .otp-boxes {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .otp-box {
+      width: 56px;
+      height: 56px;
       text-align: center;
       font-size: 1.5rem;
-      letter-spacing: 8px;
       font-weight: 600;
+      text-transform: uppercase;
+      padding: 0;
+      background: var(--app-surface);
+      border: 2px solid var(--app-border);
+      border-radius: var(--radius-sm);
+      color: var(--app-text-primary);
+      transition: all 0.2s ease;
+    }
+
+    .otp-box:focus {
+      outline: none;
+      border-color: var(--color-secondary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .otp-box:disabled {
+      background: var(--app-surface-variant);
+      cursor: not-allowed;
     }
 
     .otp-info {
@@ -285,6 +315,7 @@ import { AuthService } from '../../core/services/auth.service';
 export class LoginComponent {
   email = '';
   otp = '';
+  otpDigits: string[] = ['', '', '', ''];
   otpSent = false;
   isLoading = false;
   error = '';
@@ -334,6 +365,52 @@ export class LoginComponent {
   resetForm(): void {
     this.otpSent = false;
     this.otp = '';
+    this.otpDigits = ['', '', '', ''];
     this.error = '';
+  }
+
+  onOtpInput(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.toUpperCase();
+
+    // Only allow alphanumeric
+    if (value && !/^[A-Z0-9]$/.test(value)) {
+      input.value = this.otpDigits[index];
+      return;
+    }
+
+    this.otpDigits[index] = value;
+    this.otp = this.otpDigits.join('');
+
+    // Auto-focus next input
+    if (value && index < 3) {
+      const nextInput = document.getElementById(`otp-${index + 1}`) as HTMLInputElement;
+      nextInput?.focus();
+    }
+  }
+
+  onOtpKeydown(event: KeyboardEvent, index: number): void {
+    // Handle backspace - move to previous input
+    if (event.key === 'Backspace' && !this.otpDigits[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`) as HTMLInputElement;
+      prevInput?.focus();
+    }
+  }
+
+  onOtpPaste(event: ClipboardEvent): void {
+    event.preventDefault();
+    const paste = event.clipboardData?.getData('text')?.toUpperCase() || '';
+    const chars = paste.replace(/[^A-Z0-9]/g, '').slice(0, 4).split('');
+
+    chars.forEach((char, i) => {
+      this.otpDigits[i] = char;
+    });
+    this.otp = this.otpDigits.join('');
+
+    // Focus the next empty input or the last one
+    const nextEmptyIndex = this.otpDigits.findIndex(d => !d);
+    const focusIndex = nextEmptyIndex === -1 ? 3 : nextEmptyIndex;
+    const input = document.getElementById(`otp-${focusIndex}`) as HTMLInputElement;
+    input?.focus();
   }
 }
