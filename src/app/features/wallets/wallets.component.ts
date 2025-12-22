@@ -78,7 +78,8 @@ interface TransactionWithUser {
         <p>Chargement...</p>
       </div>
       } @else {
-      <div class="table-container">
+      <!-- Desktop Table View -->
+      <div class="table-container desktop-only">
         <table class="data-table">
           <thead>
             <tr>
@@ -162,6 +163,51 @@ interface TransactionWithUser {
         </table>
       </div>
 
+      <!-- Mobile Card View for Wallets -->
+      <div class="mobile-cards mobile-only">
+        @for (wallet of wallets; track wallet._id) {
+        <div class="mobile-card">
+          <div class="card-header">
+            <div class="wallet-info">
+              <span class="wallet-phone">{{ wallet.userId?.phone || 'N/A' }}</span>
+              @if (wallet.userId?.email) {
+              <span class="wallet-email">{{ wallet.userId.email }}</span>
+              }
+            </div>
+            <div class="wallet-balance" [class.positive]="wallet.balance > 0" [class.zero]="wallet.balance === 0">
+              {{ wallet.balance | number : '1.2-2' }} {{ wallet.currency }}
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="card-row">
+              <span class="card-label">Derniere mise a jour</span>
+              <span class="card-value date">{{ wallet.updatedAt | date : 'dd/MM/yyyy HH:mm' }}</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn-action primary" (click)="viewUserTransactions(wallet)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              Transactions
+            </button>
+            <button class="btn-action success" (click)="openCreditModal(wallet)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Crediter
+            </button>
+          </div>
+        </div>
+        } @empty {
+        <div class="empty-state">
+          <p>Aucun portefeuille trouve</p>
+        </div>
+        }
+      </div>
+
       <div class="table-footer">
         <span
           >{{ wallets.length }} portefeuille(s) affiche(s) sur
@@ -200,7 +246,8 @@ interface TransactionWithUser {
         <p>Chargement...</p>
       </div>
       } @else {
-      <div class="table-container">
+      <!-- Desktop Table View -->
+      <div class="table-container desktop-only">
         <table class="data-table">
           <thead>
             <tr>
@@ -254,6 +301,48 @@ interface TransactionWithUser {
             }
           </tbody>
         </table>
+      </div>
+
+      <!-- Mobile Card View for Transactions -->
+      <div class="mobile-cards mobile-only">
+        @for (tx of transactions; track tx._id) {
+        <div class="mobile-card transaction-card" [class.credit-card]="tx.type === 'CREDIT'" [class.debit-card]="tx.type === 'DEBIT'">
+          <div class="card-header">
+            <div class="tx-user">
+              @if (tx.userId?.firstName || tx.userId?.lastName) {
+              {{ tx.userId.firstName }} {{ tx.userId.lastName }}
+              } @else {
+              {{ tx.userId?.phone || 'N/A' }}
+              }
+            </div>
+            <span class="type-badge" [attr.data-type]="tx.type">
+              {{ getTypeLabel(tx.type) }}
+            </span>
+          </div>
+          <div class="card-body">
+            <div class="tx-amount-row">
+              <span class="tx-amount" [class.credit]="tx.type === 'CREDIT'" [class.debit]="tx.type === 'DEBIT'">
+                {{ tx.type === 'CREDIT' ? '+' : '-' }}{{ tx.amount | number : '1.2-2' }} TND
+              </span>
+              <span class="reason-badge" [attr.data-reason]="tx.reason">
+                {{ getReasonLabel(tx.reason) }}
+              </span>
+            </div>
+            <div class="card-row">
+              <span class="card-label">Solde apres</span>
+              <span class="card-value">{{ tx.balanceAfter | number : '1.2-2' }} TND</span>
+            </div>
+            <div class="card-row">
+              <span class="card-label">Date</span>
+              <span class="card-value date">{{ tx.createdAt | date : 'dd/MM/yyyy HH:mm' }}</span>
+            </div>
+          </div>
+        </div>
+        } @empty {
+        <div class="empty-state">
+          <p>Aucune transaction trouvee</p>
+        </div>
+        }
       </div>
 
       <div class="table-footer">
@@ -873,7 +962,24 @@ interface TransactionWithUser {
         }
       }
 
+      /* Responsive visibility */
+      .desktop-only {
+        display: block;
+      }
+
+      .mobile-only {
+        display: none;
+      }
+
       @media (max-width: 768px) {
+        .desktop-only {
+          display: none !important;
+        }
+
+        .mobile-only {
+          display: block !important;
+        }
+
         .filters {
           flex-direction: column;
         }
@@ -885,6 +991,179 @@ interface TransactionWithUser {
         .modal {
           margin: var(--spacing-md);
           max-width: calc(100% - 2 * var(--spacing-md));
+        }
+
+        /* Mobile Cards */
+        .mobile-cards {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-md);
+        }
+
+        .mobile-card {
+          background: var(--app-surface);
+          border: 1px solid var(--app-border);
+          border-radius: var(--radius-md);
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .mobile-card.credit-card {
+          border-left: 3px solid var(--color-success);
+        }
+
+        .mobile-card.debit-card {
+          border-left: 3px solid var(--color-error);
+        }
+
+        .card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--spacing-md);
+          background: var(--app-surface-variant);
+          border-bottom: 1px solid var(--app-border);
+          gap: var(--spacing-sm);
+        }
+
+        /* Wallet Card Specific Styles */
+        .wallet-info {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .wallet-phone {
+          font-size: 1rem;
+          font-weight: 600;
+          font-family: monospace;
+          color: var(--color-secondary);
+        }
+
+        .wallet-email {
+          font-size: 0.75rem;
+          color: var(--app-text-secondary);
+        }
+
+        .wallet-balance {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--app-text-primary);
+        }
+
+        .wallet-balance.positive {
+          color: var(--color-success);
+        }
+
+        .wallet-balance.zero {
+          color: var(--app-text-secondary);
+        }
+
+        /* Transaction Card Specific Styles */
+        .tx-user {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: var(--app-text-primary);
+        }
+
+        .tx-amount-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--spacing-md) 0;
+          border-bottom: 1px solid var(--app-border);
+        }
+
+        .tx-amount {
+          font-size: 1.25rem;
+          font-weight: 700;
+        }
+
+        .tx-amount.credit {
+          color: var(--color-success);
+        }
+
+        .tx-amount.debit {
+          color: var(--color-error);
+        }
+
+        .card-body {
+          padding: var(--spacing-md);
+        }
+
+        .card-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 0;
+          border-bottom: 1px solid var(--app-border);
+        }
+
+        .card-row:last-child {
+          border-bottom: none;
+        }
+
+        .card-label {
+          font-size: 0.75rem;
+          color: var(--app-text-secondary);
+          text-transform: uppercase;
+          font-weight: 500;
+        }
+
+        .card-value {
+          font-size: 0.875rem;
+          color: var(--app-text-primary);
+        }
+
+        .card-value.date {
+          color: var(--app-text-secondary);
+          font-size: 0.813rem;
+        }
+
+        .card-actions {
+          display: flex;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-md);
+          border-top: 1px solid var(--app-border);
+          background: var(--app-surface-variant);
+        }
+
+        .btn-action {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px 12px;
+          border: none;
+          border-radius: var(--radius-sm);
+          font-size: 0.813rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          background: var(--app-surface);
+          color: var(--app-text-primary);
+          border: 1px solid var(--app-border);
+        }
+
+        .btn-action.primary {
+          background: rgba(37, 99, 235, 0.1);
+          color: var(--color-secondary);
+          border-color: rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-action.success {
+          background: rgba(34, 197, 94, 0.1);
+          color: var(--color-success);
+          border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .empty-state {
+          text-align: center;
+          padding: 40px var(--spacing-md);
+          color: var(--app-text-secondary);
+          background: var(--app-surface);
+          border: 1px solid var(--app-border);
+          border-radius: var(--radius-md);
         }
       }
     `,

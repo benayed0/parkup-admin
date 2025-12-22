@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Subject } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
 import { Ticket, TicketStatus, TicketReason } from '../../core/models/ticket.model';
 import { Agent } from '../../core/models/agent.model';
@@ -54,12 +56,6 @@ import {
             [showPreview]="false"
             (plateChange)="onPlateSearchChange($event)"
           ></app-license-plate-input>
-          <button class="btn-search" (click)="loadTickets()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -69,7 +65,8 @@ import {
           <p>Chargement...</p>
         </div>
       } @else {
-        <div class="table-container">
+        <!-- Desktop Table View -->
+        <div class="table-container desktop-only">
           <table class="data-table">
             <thead>
               <tr>
@@ -133,6 +130,74 @@ import {
               }
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="mobile-cards mobile-only">
+          @for (ticket of tickets; track ticket._id) {
+            <div class="mobile-card">
+              <div class="card-header">
+                <div class="card-plate">
+                  <app-license-plate-display
+                    [plateNumber]="ticket.licensePlate"
+                    [mini]="true"
+                    [scale]="0.85"
+                  ></app-license-plate-display>
+                </div>
+                <span class="status-badge" [attr.data-status]="ticket.status">
+                  <span class="badge-icon" [innerHTML]="getStatusIcon(ticket.status)"></span>
+                  {{ getStatusLabel(ticket.status) }}
+                </span>
+              </div>
+              <div class="card-body">
+                <div class="card-row">
+                  <span class="card-label">N° Ticket</span>
+                  <span class="card-value ticket-number">{{ ticket.ticketNumber }}</span>
+                </div>
+                <div class="card-row">
+                  <span class="card-label">Montant</span>
+                  <span class="card-value amount">{{ ticket.fineAmount }} DH</span>
+                </div>
+                <div class="card-row">
+                  <span class="card-label">Raison</span>
+                  <span class="reason-badge" [attr.data-reason]="ticket.reason">
+                    <span class="badge-icon" [innerHTML]="getReasonIcon(ticket.reason)"></span>
+                    {{ getReasonLabel(ticket.reason) }}
+                  </span>
+                </div>
+                <div class="card-row">
+                  <span class="card-label">Agent</span>
+                  <span class="card-value">{{ getAgentName(ticket.agentId) }}</span>
+                </div>
+                <div class="card-row">
+                  <span class="card-label">Date</span>
+                  <span class="card-value date">{{ ticket.issuedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                @if (ticket.status === 'PENDING' || ticket.status === 'APPEALED') {
+                  <button class="btn-action success" (click)="dismissTicket(ticket)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Annuler
+                  </button>
+                }
+                <button class="btn-action danger" (click)="deleteTicket(ticket)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-state">
+              <p>Aucun ticket trouvé</p>
+            </div>
+          }
         </div>
 
         <div class="table-footer">
@@ -211,25 +276,6 @@ import {
       display: flex;
       align-items: flex-end;
       gap: var(--spacing-sm);
-    }
-
-    .btn-search {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      background: var(--color-secondary);
-      border: none;
-      border-radius: var(--radius-sm);
-      color: white;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    .btn-search:hover {
-      background: #1d4ed8;
     }
 
     .loading {
@@ -473,7 +519,24 @@ import {
       }
     }
 
+    /* Responsive visibility */
+    .desktop-only {
+      display: block;
+    }
+
+    .mobile-only {
+      display: none;
+    }
+
     @media (max-width: 768px) {
+      .desktop-only {
+        display: none !important;
+      }
+
+      .mobile-only {
+        display: block !important;
+      }
+
       .filters {
         flex-direction: column;
       }
@@ -482,11 +545,140 @@ import {
       .search-box input {
         width: 100%;
       }
+
+      /* Mobile Cards */
+      .mobile-cards {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+      }
+
+      .mobile-card {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--spacing-md);
+        background: var(--app-surface-variant);
+        border-bottom: 1px solid var(--app-border);
+        gap: var(--spacing-sm);
+      }
+
+      .card-plate {
+        flex-shrink: 0;
+      }
+
+      .card-body {
+        padding: var(--spacing-md);
+      }
+
+      .card-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--app-border);
+      }
+
+      .card-row:last-child {
+        border-bottom: none;
+      }
+
+      .card-label {
+        font-size: 0.75rem;
+        color: var(--app-text-secondary);
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+
+      .card-value {
+        font-size: 0.875rem;
+        color: var(--app-text-primary);
+        text-align: right;
+      }
+
+      .card-value.ticket-number {
+        font-family: monospace;
+        color: var(--color-secondary);
+      }
+
+      .card-value.amount {
+        font-weight: 600;
+        color: var(--color-warning);
+      }
+
+      .card-value.date {
+        color: var(--app-text-secondary);
+        font-size: 0.813rem;
+      }
+
+      .card-actions {
+        display: flex;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-md);
+        border-top: 1px solid var(--app-border);
+        background: var(--app-surface-variant);
+      }
+
+      .btn-action {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: 0.813rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: var(--app-surface);
+        color: var(--app-text-primary);
+        border: 1px solid var(--app-border);
+      }
+
+      .btn-action.success {
+        background: rgba(34, 197, 94, 0.1);
+        color: var(--color-success);
+        border-color: rgba(34, 197, 94, 0.3);
+      }
+
+      .btn-action.success:hover {
+        background: rgba(34, 197, 94, 0.2);
+      }
+
+      .btn-action.danger {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--color-error);
+        border-color: rgba(239, 68, 68, 0.3);
+      }
+
+      .btn-action.danger:hover {
+        background: rgba(239, 68, 68, 0.2);
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px var(--spacing-md);
+        color: var(--app-text-secondary);
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
+      }
     }
   `]
 })
-export class TicketsComponent implements OnInit {
+export class TicketsComponent implements OnInit, OnDestroy {
   tickets: Ticket[] = [];
+  allTickets: Ticket[] = []; // All tickets from API (filtered by status/agent)
   agents: Agent[] = [];
   isLoading = true;
 
@@ -496,6 +688,9 @@ export class TicketsComponent implements OnInit {
   searchPlateData: LicensePlate | null = null;
 
   message: { type: 'success' | 'error'; text: string } | null = null;
+
+  private plateSearch$ = new Subject<string>();
+  private destroy$ = new Subject<void>();
 
   private reasonLabels: Record<TicketReason, string> = {
     [TicketReason.NO_SESSION]: 'Sans session',
@@ -520,6 +715,21 @@ export class TicketsComponent implements OnInit {
   ngOnInit(): void {
     this.loadAgents();
     this.loadTickets();
+
+    // Debounced plate search - filter locally for instant feedback
+    this.plateSearch$
+      .pipe(
+        debounceTime(150), // Faster since it's local
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        this.filterTicketsLocally();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadAgents(): void {
@@ -534,27 +744,26 @@ export class TicketsComponent implements OnInit {
   onPlateSearchChange(plate: LicensePlate): void {
     this.searchPlateData = plate;
     this.searchPlate = plate.formatted || '';
+    // Include type in the search key so changing type also triggers search
+    this.plateSearch$.next(`${plate.type}:${this.searchPlate}`);
   }
 
   loadTickets(): void {
     this.isLoading = true;
     const params: any = {};
 
+    // Only send status/agent filters to API
     if (this.filterStatus) {
       params.status = this.filterStatus;
     }
     if (this.filterAgentId) {
       params.agentId = this.filterAgentId;
     }
-    // Use formatted plate string for search
-    const plateSearch = this.searchPlateData?.formatted || this.searchPlate;
-    if (plateSearch.trim()) {
-      params.licensePlate = plateSearch.trim().toUpperCase();
-    }
 
     this.apiService.getTickets(params).subscribe({
       next: ({ data }) => {
-        this.tickets = data;
+        this.allTickets = data;
+        this.filterTicketsLocally();
         this.isLoading = false;
       },
       error: (err) => {
@@ -563,6 +772,57 @@ export class TicketsComponent implements OnInit {
         this.isLoading = false;
       },
     });
+  }
+
+  private filterTicketsLocally(): void {
+    if (!this.searchPlateData || this.isPlateSearchEmpty()) {
+      this.tickets = this.allTickets;
+      return;
+    }
+
+    const searchLeft = this.searchPlateData.left?.trim().toLowerCase() || '';
+    const searchRight = this.searchPlateData.right?.trim().toLowerCase() || '';
+    const searchType = this.searchPlateData.type;
+
+    this.tickets = this.allTickets.filter(ticket => {
+      // If ticket has plate object, use structured search
+      if (ticket.plate) {
+        // Check plate type matches
+        if (ticket.plate.type !== searchType) {
+          return false;
+        }
+
+        // Check left part (starts with)
+        if (searchLeft) {
+          const ticketLeft = (ticket.plate.left || '').toLowerCase();
+          if (!ticketLeft.startsWith(searchLeft)) {
+            return false;
+          }
+        }
+
+        // Check right part (starts with)
+        if (searchRight) {
+          const ticketRight = (ticket.plate.right || '').toLowerCase();
+          if (!ticketRight.startsWith(searchRight)) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      // Fallback: search in licensePlate string for older tickets
+      const licensePlate = ticket.licensePlate.toLowerCase();
+      const searchTerm = (searchLeft + searchRight).toLowerCase();
+      return searchTerm ? licensePlate.includes(searchTerm) : true;
+    });
+  }
+
+  private isPlateSearchEmpty(): boolean {
+    if (!this.searchPlateData) return true;
+    const hasLeft = this.searchPlateData.left?.trim();
+    const hasRight = this.searchPlateData.right?.trim();
+    return !hasLeft && !hasRight;
   }
 
   getReasonLabel(reason: TicketReason): string {

@@ -51,7 +51,8 @@ import { ZoneSelectorComponent } from '../../shared/components/zone-selector/zon
           <p>Chargement...</p>
         </div>
       } @else {
-        <div class="table-container">
+        <!-- Desktop Table View -->
+        <div class="table-container desktop-only">
           <table class="data-table">
             <thead>
               <tr>
@@ -103,6 +104,73 @@ import { ZoneSelectorComponent } from '../../shared/components/zone-selector/zon
               }
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="mobile-cards mobile-only">
+          @for (agent of filteredAgents; track agent._id) {
+            <div class="mobile-card" [class.inactive-card]="!agent.isActive">
+              <div class="card-header">
+                <div class="agent-info">
+                  <div class="agent-avatar" [class.inactive]="!agent.isActive">
+                    {{ agent.name.charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="agent-details">
+                    <span class="agent-name">{{ agent.name }}</span>
+                    <span class="agent-username">{{ agent.username }}</span>
+                  </div>
+                </div>
+                <span class="status" [class.active]="agent.isActive" [class.inactive]="!agent.isActive">
+                  {{ agent.isActive ? 'Actif' : 'Inactif' }}
+                </span>
+              </div>
+              <div class="card-body">
+                <div class="card-row">
+                  <span class="card-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                    </svg>
+                    Téléphone
+                  </span>
+                  <span class="card-value">{{ agent.phone || '-' }}</span>
+                </div>
+                <div class="card-row">
+                  <span class="card-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    Zones
+                  </span>
+                  @if (agent.assignedZones && agent.assignedZones.length > 0) {
+                    <span class="badge">{{ agent.assignedZones.length }} zones</span>
+                  } @else {
+                    <span class="card-value text-muted">Aucune</span>
+                  }
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-action primary" (click)="openEditModal(agent)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  Modifier
+                </button>
+                <button class="btn-action danger" (click)="deleteAgent(agent)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-state">
+              <p>Aucun agent trouvé</p>
+            </div>
+          }
         </div>
 
         <div class="table-footer">
@@ -664,7 +732,24 @@ import { ZoneSelectorComponent } from '../../shared/components/zone-selector/zon
       }
     }
 
+    /* Responsive visibility */
+    .desktop-only {
+      display: block;
+    }
+
+    .mobile-only {
+      display: none;
+    }
+
     @media (max-width: 768px) {
+      .desktop-only {
+        display: none !important;
+      }
+
+      .mobile-only {
+        display: block !important;
+      }
+
       .page-header {
         flex-direction: column;
         gap: var(--spacing-md);
@@ -678,12 +763,155 @@ import { ZoneSelectorComponent } from '../../shared/components/zone-selector/zon
         max-width: none;
       }
 
-      .table-container {
-        overflow-x: auto;
+      /* Mobile Cards */
+      .mobile-cards {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
       }
 
-      .data-table {
-        min-width: 700px;
+      .mobile-card {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .mobile-card.inactive-card {
+        opacity: 0.7;
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--spacing-md);
+        background: var(--app-surface-variant);
+        border-bottom: 1px solid var(--app-border);
+        gap: var(--spacing-sm);
+      }
+
+      .agent-info {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+      }
+
+      .agent-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--color-secondary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .agent-avatar.inactive {
+        background: var(--app-text-secondary);
+      }
+
+      .agent-details {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .agent-name {
+        font-size: 0.938rem;
+        font-weight: 600;
+        color: var(--app-text-primary);
+      }
+
+      .agent-username {
+        font-size: 0.75rem;
+        color: var(--app-text-secondary);
+      }
+
+      .card-body {
+        padding: var(--spacing-md);
+      }
+
+      .card-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--app-border);
+      }
+
+      .card-row:last-child {
+        border-bottom: none;
+      }
+
+      .card-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75rem;
+        color: var(--app-text-secondary);
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+
+      .card-value {
+        font-size: 0.875rem;
+        color: var(--app-text-primary);
+      }
+
+      .card-value.text-muted {
+        color: var(--app-text-secondary);
+        font-style: italic;
+      }
+
+      .card-actions {
+        display: flex;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-md);
+        border-top: 1px solid var(--app-border);
+        background: var(--app-surface-variant);
+      }
+
+      .btn-action {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: 0.813rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: var(--app-surface);
+        color: var(--app-text-primary);
+        border: 1px solid var(--app-border);
+      }
+
+      .btn-action.primary {
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--color-secondary);
+        border-color: rgba(37, 99, 235, 0.3);
+      }
+
+      .btn-action.danger {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--color-error);
+        border-color: rgba(239, 68, 68, 0.3);
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px var(--spacing-md);
+        color: var(--app-text-secondary);
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
       }
     }
   `]
