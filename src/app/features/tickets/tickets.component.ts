@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService } from '../../core/services/api.service';
 import { Ticket, TicketStatus, TicketReason } from '../../core/models/ticket.model';
 import { Agent } from '../../core/models/agent.model';
@@ -95,6 +96,7 @@ import {
                   </td>
                   <td>
                     <span class="reason-badge" [attr.data-reason]="ticket.reason">
+                      <span class="badge-icon" [innerHTML]="getReasonIcon(ticket.reason)"></span>
                       {{ getReasonLabel(ticket.reason) }}
                     </span>
                   </td>
@@ -103,6 +105,7 @@ import {
                   <td class="date">{{ ticket.issuedAt | date:'dd/MM/yyyy HH:mm' }}</td>
                   <td>
                     <span class="status-badge" [attr.data-status]="ticket.status">
+                      <span class="badge-icon" [innerHTML]="getStatusIcon(ticket.status)"></span>
                       {{ getStatusLabel(ticket.status) }}
                     </span>
                   </td>
@@ -316,10 +319,24 @@ import {
     }
 
     .reason-badge {
-      padding: 4px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
       border-radius: var(--radius-sm);
       font-size: 0.75rem;
       font-weight: 500;
+    }
+
+    .badge-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .badge-icon svg {
+      width: 14px;
+      height: 14px;
     }
 
     .reason-badge[data-reason="NO_SESSION"] {
@@ -343,7 +360,10 @@ import {
     }
 
     .status-badge {
-      padding: 4px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
       border-radius: 20px;
       font-size: 0.75rem;
       font-weight: 500;
@@ -492,7 +512,10 @@ export class TicketsComponent implements OnInit {
     [TicketStatus.DISMISSED]: 'Annulé',
   };
 
-  constructor(private apiService: ApiService) {}
+  constructor(
+    private apiService: ApiService,
+    private sanitizer: DomSanitizer
+  ) {}
 
   ngOnInit(): void {
     this.loadAgents();
@@ -548,6 +571,27 @@ export class TicketsComponent implements OnInit {
 
   getStatusLabel(status: TicketStatus): string {
     return this.statusLabels[status] || status;
+  }
+
+  getReasonIcon(reason: TicketReason): SafeHtml {
+    const icons: Record<TicketReason, string> = {
+      [TicketReason.NO_SESSION]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      [TicketReason.EXPIRED_SESSION]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      [TicketReason.OVERSTAYED]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      [TicketReason.WRONG_ZONE]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+    };
+    return this.sanitizer.bypassSecurityTrustHtml(icons[reason] || '');
+  }
+
+  getStatusIcon(status: TicketStatus): SafeHtml {
+    const icons: Record<TicketStatus, string> = {
+      [TicketStatus.PENDING]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      [TicketStatus.PAID]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      [TicketStatus.OVERDUE]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      [TicketStatus.APPEALED]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+      [TicketStatus.DISMISSED]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+    };
+    return this.sanitizer.bypassSecurityTrustHtml(icons[status] || '');
   }
 
   getAgentName(agentId: Agent | string): string {
