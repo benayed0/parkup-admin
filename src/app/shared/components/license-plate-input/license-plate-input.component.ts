@@ -433,17 +433,30 @@ export const PLATE_TYPES: PlateTypeConfig[] = [
 
       /* Special plate styles */
       .government-plate {
-        background: linear-gradient(
-          to bottom,
-          #dc2626 50%,
-          #ffffff 50%
-        );
+        background: #ffffff;
+        border-color: #dc2626;
+        position: relative;
+      }
+
+      .government-plate::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        background: #dc2626;
       }
 
       .government-plate .plate-input,
       .government-plate .plate-center {
-        color: #000;
-        text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+        color: #dc2626;
+        font-weight: 800;
+      }
+
+      .government-plate .plate-input::placeholder {
+        color: #dc2626;
+        opacity: 0.4;
       }
 
       .diplomatic-plate,
