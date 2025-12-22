@@ -173,7 +173,8 @@ interface SessionStats {
           <p>Chargement...</p>
         </div>
       } @else {
-        <div class="table-container">
+        <!-- Desktop Table View -->
+        <div class="table-container desktop-only">
           <table class="data-table">
             <thead>
               <tr>
@@ -253,6 +254,95 @@ interface SessionStats {
               }
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="mobile-cards mobile-only">
+          @for (session of sessions; track session._id) {
+            <div class="mobile-card" [class.active-card]="session.status === 'active'" [class.expired-card]="session.status === 'expired'">
+              <div class="card-header">
+                <div class="card-plate">
+                  <app-license-plate-display
+                    [plate]="session.plate"
+                    [plateNumber]="session.licensePlate"
+                    [mini]="true"
+                    [scale]="0.85"
+                  ></app-license-plate-display>
+                </div>
+                <span class="status-badge" [attr.data-status]="getEffectiveStatus(session)">
+                  {{ getStatusLabel(getEffectiveStatus(session)) }}
+                  @if (isOverdue(session)) {
+                    <span class="overdue-indicator">(depassee)</span>
+                  }
+                </span>
+              </div>
+              <div class="card-body">
+                <div class="card-row">
+                  <span class="card-label">Zone</span>
+                  <span class="card-value zone-name">{{ session.zoneName }}</span>
+                </div>
+                <div class="card-row highlight">
+                  <span class="card-label">Montant</span>
+                  <span class="card-value amount">{{ session.amount | number:'1.2-2' }} DT</span>
+                </div>
+                <div class="card-row">
+                  <span class="card-label">Duree</span>
+                  <span class="card-value">{{ session.durationMinutes }} min</span>
+                </div>
+                <div class="card-time-row">
+                  <div class="time-block">
+                    <span class="time-label">Debut</span>
+                    <span class="time-value">{{ session.startTime | date:'dd/MM HH:mm' }}</span>
+                  </div>
+                  <div class="time-separator">→</div>
+                  <div class="time-block" [class.overdue]="isOverdue(session)">
+                    <span class="time-label">Fin</span>
+                    <span class="time-value">
+                      {{ session.endTime | date:'dd/MM HH:mm' }}
+                      @if (isOverdue(session)) {
+                        <span class="overdue-badge">!</span>
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="card-actions">
+                @if (session.status === 'active') {
+                  <button class="btn-action warning" (click)="openExtendModal(session)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Prolonger
+                  </button>
+                  <button class="btn-action success" (click)="endSession(session)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Terminer
+                  </button>
+                  <button class="btn-action danger" (click)="cancelSession(session)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="15" y1="9" x2="9" y2="15"></line>
+                      <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                  </button>
+                }
+                <button class="btn-action danger" (click)="deleteSession(session)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-state">
+              <p>Aucune session trouvee</p>
+            </div>
+          }
         </div>
 
         <div class="table-footer">
@@ -865,7 +955,24 @@ interface SessionStats {
       }
     }
 
+    /* Responsive visibility */
+    .desktop-only {
+      display: block;
+    }
+
+    .mobile-only {
+      display: none;
+    }
+
     @media (max-width: 768px) {
+      .desktop-only {
+        display: none !important;
+      }
+
+      .mobile-only {
+        display: block !important;
+      }
+
       .page-header {
         flex-direction: column;
         gap: var(--spacing-md);
@@ -891,11 +998,192 @@ interface SessionStats {
       .search-box input {
         width: 100%;
       }
+
+      /* Mobile Cards */
+      .mobile-cards {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+      }
+
+      .mobile-card {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .mobile-card.active-card {
+        border-left: 3px solid var(--color-success);
+      }
+
+      .mobile-card.expired-card {
+        border-left: 3px solid var(--color-warning);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--spacing-md);
+        background: var(--app-surface-variant);
+        border-bottom: 1px solid var(--app-border);
+        gap: var(--spacing-sm);
+      }
+
+      .card-plate {
+        flex-shrink: 0;
+      }
+
+      .card-body {
+        padding: var(--spacing-md);
+      }
+
+      .card-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--app-border);
+      }
+
+      .card-row:last-child {
+        border-bottom: none;
+      }
+
+      .card-row.highlight {
+        background: rgba(37, 99, 235, 0.05);
+        margin: 0 calc(-1 * var(--spacing-md));
+        padding: 8px var(--spacing-md);
+      }
+
+      .card-label {
+        font-size: 0.75rem;
+        color: var(--app-text-secondary);
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+
+      .card-value {
+        font-size: 0.875rem;
+        color: var(--app-text-primary);
+        text-align: right;
+      }
+
+      .card-value.zone-name {
+        font-weight: 500;
+        color: var(--color-secondary);
+      }
+
+      .card-value.amount {
+        font-weight: 600;
+        color: var(--color-secondary);
+        font-size: 1rem;
+      }
+
+      .card-time-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        gap: var(--spacing-sm);
+      }
+
+      .time-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+      }
+
+      .time-label {
+        font-size: 0.625rem;
+        color: var(--app-text-secondary);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+
+      .time-value {
+        font-size: 0.813rem;
+        color: var(--app-text-primary);
+        font-weight: 500;
+      }
+
+      .time-block.overdue .time-value {
+        color: var(--color-error);
+      }
+
+      .time-separator {
+        color: var(--app-text-secondary);
+        font-size: 1rem;
+      }
+
+      .card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-md);
+        border-top: 1px solid var(--app-border);
+        background: var(--app-surface-variant);
+      }
+
+      .btn-action {
+        flex: 1;
+        min-width: calc(50% - var(--spacing-sm));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: var(--app-surface);
+        color: var(--app-text-primary);
+        border: 1px solid var(--app-border);
+      }
+
+      .btn-action.success {
+        background: rgba(34, 197, 94, 0.1);
+        color: var(--color-success);
+        border-color: rgba(34, 197, 94, 0.3);
+      }
+
+      .btn-action.warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--color-warning);
+        border-color: rgba(245, 158, 11, 0.3);
+      }
+
+      .btn-action.danger {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--color-error);
+        border-color: rgba(239, 68, 68, 0.3);
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px var(--spacing-md);
+        color: var(--app-text-secondary);
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
+      }
     }
 
     @media (max-width: 480px) {
       .stats-grid {
         grid-template-columns: 1fr;
+      }
+
+      .btn-action {
+        min-width: calc(50% - var(--spacing-sm));
+        font-size: 0.688rem;
+        padding: 8px 10px;
       }
     }
   `]
