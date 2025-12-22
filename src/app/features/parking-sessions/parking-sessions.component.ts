@@ -209,8 +209,11 @@ interface SessionStats {
                   <td>{{ session.durationMinutes }} min</td>
                   <td class="amount">{{ session.amount | number:'1.2-2' }} DT</td>
                   <td>
-                    <span class="status-badge" [attr.data-status]="session.status">
-                      {{ getStatusLabel(session.status) }}
+                    <span class="status-badge" [attr.data-status]="getEffectiveStatus(session)">
+                      {{ getStatusLabel(getEffectiveStatus(session)) }}
+                      @if (isOverdue(session)) {
+                        <span class="overdue-indicator">(depassee)</span>
+                      }
                     </span>
                   </td>
                   <td class="actions">
@@ -618,10 +621,19 @@ interface SessionStats {
     }
 
     .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       padding: 4px 10px;
       border-radius: 20px;
       font-size: 0.75rem;
       font-weight: 500;
+    }
+
+    .overdue-indicator {
+      font-size: 0.625rem;
+      opacity: 0.8;
+      font-style: italic;
     }
 
     .status-badge[data-status="active"] {
@@ -1049,6 +1061,14 @@ export class ParkingSessionsComponent implements OnInit {
 
   getStatusLabel(status: ParkingSessionStatus): string {
     return this.statusLabels[status] || status;
+  }
+
+  getEffectiveStatus(session: ParkingSession): ParkingSessionStatus {
+    // If session is active but end time has passed, show as expired
+    if (session.status === ParkingSessionStatus.ACTIVE && new Date(session.endTime) < new Date()) {
+      return ParkingSessionStatus.EXPIRED;
+    }
+    return session.status;
   }
 
   openExtendModal(session: ParkingSession): void {
