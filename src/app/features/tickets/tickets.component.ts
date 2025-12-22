@@ -1,14 +1,20 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService } from '../../core/services/api.service';
 import { Ticket, TicketStatus, TicketReason } from '../../core/models/ticket.model';
 import { Agent } from '../../core/models/agent.model';
+import { LicensePlate } from '../../core/models/parking-session.model';
+import {
+  LicensePlateInputComponent,
+  LicensePlateDisplayComponent,
+} from '../../shared/components/license-plate-input';
 
 @Component({
   selector: 'app-tickets',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LicensePlateInputComponent, LicensePlateDisplayComponent],
   template: `
     <div class="tickets-page">
       <header class="page-header">
@@ -40,13 +46,20 @@ import { Agent } from '../../core/models/agent.model';
             }
           </select>
         </div>
-        <div class="search-box">
-          <input
-            type="text"
-            placeholder="Rechercher par plaque..."
-            [(ngModel)]="searchPlate"
-            (keyup.enter)="loadTickets()"
-          />
+        <div class="plate-search-box">
+          <app-license-plate-input
+            label="Rechercher par plaque"
+            [showTypeSelector]="true"
+            [compactTypeSelector]="true"
+            [showPreview]="false"
+            (plateChange)="onPlateSearchChange($event)"
+          ></app-license-plate-input>
+          <button class="btn-search" (click)="loadTickets()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -74,9 +87,16 @@ import { Agent } from '../../core/models/agent.model';
               @for (ticket of tickets; track ticket._id) {
                 <tr>
                   <td class="ticket-number">{{ ticket.ticketNumber }}</td>
-                  <td class="plate">{{ ticket.licensePlate }}</td>
+                  <td class="plate">
+                    <app-license-plate-display
+                      [plateNumber]="ticket.licensePlate"
+                      [mini]="true"
+                      [scale]="0.9"
+                    ></app-license-plate-display>
+                  </td>
                   <td>
                     <span class="reason-badge" [attr.data-reason]="ticket.reason">
+                      <span class="badge-icon" [innerHTML]="getReasonIcon(ticket.reason)"></span>
                       {{ getReasonLabel(ticket.reason) }}
                     </span>
                   </td>
@@ -85,6 +105,7 @@ import { Agent } from '../../core/models/agent.model';
                   <td class="date">{{ ticket.issuedAt | date:'dd/MM/yyyy HH:mm' }}</td>
                   <td>
                     <span class="status-badge" [attr.data-status]="ticket.status">
+                      <span class="badge-icon" [innerHTML]="getStatusIcon(ticket.status)"></span>
                       {{ getStatusLabel(ticket.status) }}
                     </span>
                   </td>
@@ -186,14 +207,29 @@ import { Agent } from '../../core/models/agent.model';
       border-color: var(--color-secondary);
     }
 
-    .search-box {
+    .plate-search-box {
       display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
+      align-items: flex-end;
+      gap: var(--spacing-sm);
     }
 
-    .search-box input {
-      min-width: 200px;
+    .btn-search {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: var(--color-secondary);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .btn-search:hover {
+      background: #1d4ed8;
     }
 
     .loading {
@@ -269,9 +305,7 @@ import { Agent } from '../../core/models/agent.model';
     }
 
     .plate {
-      font-family: monospace;
-      font-weight: 600;
-      letter-spacing: 1px;
+      min-width: 140px;
     }
 
     .amount {
@@ -285,10 +319,24 @@ import { Agent } from '../../core/models/agent.model';
     }
 
     .reason-badge {
-      padding: 4px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
       border-radius: var(--radius-sm);
       font-size: 0.75rem;
       font-weight: 500;
+    }
+
+    .badge-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .badge-icon svg {
+      width: 14px;
+      height: 14px;
     }
 
     .reason-badge[data-reason="NO_SESSION"] {
@@ -312,7 +360,10 @@ import { Agent } from '../../core/models/agent.model';
     }
 
     .status-badge {
-      padding: 4px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
       border-radius: 20px;
       font-size: 0.75rem;
       font-weight: 500;
@@ -442,6 +493,7 @@ export class TicketsComponent implements OnInit {
   filterStatus = '';
   filterAgentId = '';
   searchPlate = '';
+  searchPlateData: LicensePlate | null = null;
 
   message: { type: 'success' | 'error'; text: string } | null = null;
 
@@ -460,7 +512,10 @@ export class TicketsComponent implements OnInit {
     [TicketStatus.DISMISSED]: 'Annulé',
   };
 
-  constructor(private apiService: ApiService) {}
+  constructor(
+    private apiService: ApiService,
+    private sanitizer: DomSanitizer
+  ) {}
 
   ngOnInit(): void {
     this.loadAgents();
@@ -476,6 +531,11 @@ export class TicketsComponent implements OnInit {
     });
   }
 
+  onPlateSearchChange(plate: LicensePlate): void {
+    this.searchPlateData = plate;
+    this.searchPlate = plate.formatted || '';
+  }
+
   loadTickets(): void {
     this.isLoading = true;
     const params: any = {};
@@ -486,8 +546,10 @@ export class TicketsComponent implements OnInit {
     if (this.filterAgentId) {
       params.agentId = this.filterAgentId;
     }
-    if (this.searchPlate.trim()) {
-      params.licensePlate = this.searchPlate.trim().toUpperCase();
+    // Use formatted plate string for search
+    const plateSearch = this.searchPlateData?.formatted || this.searchPlate;
+    if (plateSearch.trim()) {
+      params.licensePlate = plateSearch.trim().toUpperCase();
     }
 
     this.apiService.getTickets(params).subscribe({
@@ -509,6 +571,27 @@ export class TicketsComponent implements OnInit {
 
   getStatusLabel(status: TicketStatus): string {
     return this.statusLabels[status] || status;
+  }
+
+  getReasonIcon(reason: TicketReason): SafeHtml {
+    const icons: Record<TicketReason, string> = {
+      [TicketReason.NO_SESSION]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      [TicketReason.EXPIRED_SESSION]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      [TicketReason.OVERSTAYED]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      [TicketReason.WRONG_ZONE]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+    };
+    return this.sanitizer.bypassSecurityTrustHtml(icons[reason] || '');
+  }
+
+  getStatusIcon(status: TicketStatus): SafeHtml {
+    const icons: Record<TicketStatus, string> = {
+      [TicketStatus.PENDING]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      [TicketStatus.PAID]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      [TicketStatus.OVERDUE]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      [TicketStatus.APPEALED]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+      [TicketStatus.DISMISSED]: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+    };
+    return this.sanitizer.bypassSecurityTrustHtml(icons[status] || '');
   }
 
   getAgentName(agentId: Agent | string): string {

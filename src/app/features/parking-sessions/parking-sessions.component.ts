@@ -6,9 +6,15 @@ import { AuthService } from '../../core/services/auth.service';
 import {
   ParkingSession,
   ParkingSessionStatus,
+  LicensePlate,
+  PlateType,
 } from '../../core/models/parking-session.model';
 import { ParkingZone } from '../../core/models/parking-zone.model';
 import { PopulatedZone } from '../../core/models/operator.model';
+import {
+  LicensePlateInputComponent,
+  LicensePlateDisplayComponent,
+} from '../../shared/components/license-plate-input';
 
 interface SessionStats {
   totalSessions: number;
@@ -24,7 +30,7 @@ interface SessionStats {
 @Component({
   selector: 'app-parking-sessions',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LicensePlateInputComponent, LicensePlateDisplayComponent],
   template: `
     <div class="sessions-page">
       <header class="page-header">
@@ -144,13 +150,20 @@ interface SessionStats {
             }
           </select>
         </div>
-        <div class="search-box">
-          <input
-            type="text"
-            placeholder="Rechercher par plaque..."
-            [(ngModel)]="searchPlate"
-            (keyup.enter)="loadSessions()"
-          />
+        <div class="plate-search-box">
+          <app-license-plate-input
+            label="Rechercher par plaque"
+            [showTypeSelector]="true"
+            [compactTypeSelector]="true"
+            [showPreview]="false"
+            (plateChange)="onPlateSearchChange($event)"
+          ></app-license-plate-input>
+          <button class="btn-search" (click)="loadSessions()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -177,7 +190,14 @@ interface SessionStats {
             <tbody>
               @for (session of sessions; track session._id) {
                 <tr [class.active-row]="session.status === 'active'" [class.expired-row]="session.status === 'expired'">
-                  <td class="plate">{{ session.licensePlate }}</td>
+                  <td class="plate">
+                    <app-license-plate-display
+                      [plate]="session.plate"
+                      [plateNumber]="session.licensePlate"
+                      [mini]="true"
+                      [scale]="0.9"
+                    ></app-license-plate-display>
+                  </td>
                   <td>{{ session.zoneName }}</td>
                   <td class="date">{{ session.startTime | date:'dd/MM/yyyy HH:mm' }}</td>
                   <td class="date" [class.overdue]="isOverdue(session)">
@@ -189,8 +209,11 @@ interface SessionStats {
                   <td>{{ session.durationMinutes }} min</td>
                   <td class="amount">{{ session.amount | number:'1.2-2' }} DT</td>
                   <td>
-                    <span class="status-badge" [attr.data-status]="session.status">
-                      {{ getStatusLabel(session.status) }}
+                    <span class="status-badge" [attr.data-status]="getEffectiveStatus(session)">
+                      {{ getStatusLabel(getEffectiveStatus(session)) }}
+                      @if (isOverdue(session)) {
+                        <span class="overdue-indicator">(depassee)</span>
+                      }
                     </span>
                   </td>
                   <td class="actions">
@@ -251,11 +274,18 @@ interface SessionStats {
               </button>
             </div>
             <div class="modal-body">
-              <p class="session-info">
-                <strong>Plaque:</strong> {{ selectedSession.licensePlate }}<br>
-                <strong>Zone:</strong> {{ selectedSession.zoneName }}<br>
-                <strong>Fin actuelle:</strong> {{ selectedSession.endTime | date:'dd/MM/yyyy HH:mm' }}
-              </p>
+              <div class="session-info">
+                <div class="info-row">
+                  <strong>Plaque:</strong>
+                  <app-license-plate-display
+                    [plate]="selectedSession.plate"
+                    [plateNumber]="selectedSession.licensePlate"
+                    [mini]="true"
+                  ></app-license-plate-display>
+                </div>
+                <div class="info-row"><strong>Zone:</strong> {{ selectedSession.zoneName }}</div>
+                <div class="info-row"><strong>Fin actuelle:</strong> {{ selectedSession.endTime | date:'dd/MM/yyyy HH:mm' }}</div>
+              </div>
               <div class="form-group">
                 <label>Minutes supplementaires</label>
                 <input type="number" [(ngModel)]="extendMinutes" min="1" placeholder="30">
@@ -450,14 +480,29 @@ interface SessionStats {
       border-color: var(--color-secondary);
     }
 
-    .search-box {
+    .plate-search-box {
       display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
+      align-items: flex-end;
+      gap: var(--spacing-sm);
     }
 
-    .search-box input {
-      min-width: 200px;
+    .btn-search {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: var(--color-secondary);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .btn-search:hover {
+      background: #1d4ed8;
     }
 
     .loading {
@@ -543,9 +588,7 @@ interface SessionStats {
     }
 
     .plate {
-      font-family: monospace;
-      font-weight: 600;
-      letter-spacing: 1px;
+      min-width: 140px;
     }
 
     .amount {
@@ -578,10 +621,19 @@ interface SessionStats {
     }
 
     .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       padding: 4px 10px;
       border-radius: 20px;
       font-size: 0.75rem;
       font-weight: 500;
+    }
+
+    .overdue-indicator {
+      font-size: 0.625rem;
+      opacity: 0.8;
+      font-style: italic;
     }
 
     .status-badge[data-status="active"] {
@@ -715,7 +767,19 @@ interface SessionStats {
       background: var(--app-surface-variant);
       border-radius: var(--radius-sm);
       font-size: 0.875rem;
-      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .info-row strong {
+      min-width: 100px;
     }
 
     .form-group {
@@ -845,6 +909,7 @@ export class ParkingSessionsComponent implements OnInit {
   filterStatus = '';
   filterZoneId = '';
   searchPlate = '';
+  searchPlateData: LicensePlate | null = null;
 
   showExtendModal = false;
   selectedSession: ParkingSession | null = null;
@@ -902,6 +967,11 @@ export class ParkingSessionsComponent implements OnInit {
     });
   }
 
+  onPlateSearchChange(plate: LicensePlate): void {
+    this.searchPlateData = plate;
+    this.searchPlate = plate.formatted || '';
+  }
+
   loadSessions(): void {
     this.isLoading = true;
     const params: any = { limit: 500 };
@@ -912,8 +982,10 @@ export class ParkingSessionsComponent implements OnInit {
     if (this.filterZoneId) {
       params.zoneId = this.filterZoneId;
     }
-    if (this.searchPlate.trim()) {
-      params.licensePlate = this.searchPlate.trim().toUpperCase();
+    // Use formatted plate string for search
+    const plateSearch = this.searchPlateData?.formatted || this.searchPlate;
+    if (plateSearch.trim()) {
+      params.licensePlate = plateSearch.trim().toUpperCase();
     }
 
     this.apiService.getParkingSessions(params).subscribe({
@@ -989,6 +1061,14 @@ export class ParkingSessionsComponent implements OnInit {
 
   getStatusLabel(status: ParkingSessionStatus): string {
     return this.statusLabels[status] || status;
+  }
+
+  getEffectiveStatus(session: ParkingSession): ParkingSessionStatus {
+    // If session is active but end time has passed, show as expired
+    if (session.status === ParkingSessionStatus.ACTIVE && new Date(session.endTime) < new Date()) {
+      return ParkingSessionStatus.EXPIRED;
+    }
+    return session.status;
   }
 
   openExtendModal(session: ParkingSession): void {
