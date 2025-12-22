@@ -38,6 +38,15 @@ import { AuthService } from '../../core/services/auth.service';
             </a>
           </li>
           <li>
+            <a routerLink="/sessions" routerLinkActive="active">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>Sessions</span>
+            </a>
+          </li>
+          <li>
             <a routerLink="/tickets" routerLinkActive="active">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -57,6 +66,17 @@ import { AuthService } from '../../core/services/auth.service';
               <span>Rues</span>
             </a>
           </li>
+          @if (isSuperAdmin) {
+            <li>
+              <a routerLink="/wallets" routerLinkActive="active">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                  <line x1="1" y1="10" x2="23" y2="10"></line>
+                </svg>
+                <span>Portefeuilles</span>
+              </a>
+            </li>
+          }
           @if (canViewOperators) {
             <li>
               <a routerLink="/operators" routerLinkActive="active">
@@ -237,6 +257,10 @@ import { AuthService } from '../../core/services/auth.service';
 })
 export class LayoutComponent {
   constructor(public authService: AuthService, private router: Router) {}
+
+  get isSuperAdmin(): boolean {
+    return this.authService.currentOperator?.role === 'super_admin';
+  }
 
   get canViewOperators(): boolean {
     const operator = this.authService.currentOperator;

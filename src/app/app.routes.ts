@@ -46,6 +46,20 @@ export const routes: Routes = [
             (m) => m.OperatorsComponent
           ),
       },
+      {
+        path: 'wallets',
+        loadComponent: () =>
+          import('./features/wallets/wallets.component').then(
+            (m) => m.WalletsComponent
+          ),
+      },
+      {
+        path: 'sessions',
+        loadComponent: () =>
+          import('./features/parking-sessions/parking-sessions.component').then(
+            (m) => m.ParkingSessionsComponent
+          ),
+      },
     ],
   },
   {
