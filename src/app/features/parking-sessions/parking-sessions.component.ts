@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import {
@@ -158,12 +160,6 @@ interface SessionStats {
             [showPreview]="false"
             (plateChange)="onPlateSearchChange($event)"
           ></app-license-plate-input>
-          <button class="btn-search" (click)="loadSessions()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -574,25 +570,6 @@ interface SessionStats {
       display: flex;
       align-items: flex-end;
       gap: var(--spacing-sm);
-    }
-
-    .btn-search {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      background: var(--color-secondary);
-      border: none;
-      border-radius: var(--radius-sm);
-      color: white;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    .btn-search:hover {
-      background: #1d4ed8;
     }
 
     .loading {
@@ -1188,7 +1165,7 @@ interface SessionStats {
     }
   `]
 })
-export class ParkingSessionsComponent implements OnInit {
+export class ParkingSessionsComponent implements OnInit, OnDestroy {
   sessions: ParkingSession[] = [];
   allSessions: ParkingSession[] = [];
   zones: ParkingZone[] = [];
@@ -1217,6 +1194,9 @@ export class ParkingSessionsComponent implements OnInit {
     expiredToday: 0,
   };
 
+  private plateSearch$ = new Subject<string>();
+  private destroy$ = new Subject<void>();
+
   private statusLabels: Record<ParkingSessionStatus, string> = {
     [ParkingSessionStatus.ACTIVE]: 'Active',
     [ParkingSessionStatus.COMPLETED]: 'Terminee',
@@ -1232,6 +1212,21 @@ export class ParkingSessionsComponent implements OnInit {
   ngOnInit(): void {
     this.loadZones();
     this.loadSessions();
+
+    // Debounced plate search - filter locally for instant feedback
+    this.plateSearch$
+      .pipe(
+        debounceTime(150),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        this.filterSessionsLocally();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   get isSuperAdmin(): boolean {
@@ -1258,22 +1253,20 @@ export class ParkingSessionsComponent implements OnInit {
   onPlateSearchChange(plate: LicensePlate): void {
     this.searchPlateData = plate;
     this.searchPlate = plate.formatted || '';
+    // Trigger local filtering
+    this.plateSearch$.next(`${plate.type}:${this.searchPlate}`);
   }
 
   loadSessions(): void {
     this.isLoading = true;
     const params: any = { limit: 500 };
 
+    // Only send status/zone filters to API
     if (this.filterStatus) {
       params.status = this.filterStatus;
     }
     if (this.filterZoneId) {
       params.zoneId = this.filterZoneId;
-    }
-    // Use formatted plate string for search
-    const plateSearch = this.searchPlateData?.formatted || this.searchPlate;
-    if (plateSearch.trim()) {
-      params.licensePlate = plateSearch.trim().toUpperCase();
     }
 
     this.apiService.getParkingSessions(params).subscribe({
@@ -1288,8 +1281,8 @@ export class ParkingSessionsComponent implements OnInit {
           this.allSessions = data;
         }
 
-        // Apply current filters for display
-        this.sessions = this.allSessions;
+        // Apply local plate filter
+        this.filterSessionsLocally();
         this.calculateStats();
         this.isLoading = false;
       },
@@ -1299,6 +1292,57 @@ export class ParkingSessionsComponent implements OnInit {
         this.isLoading = false;
       },
     });
+  }
+
+  private filterSessionsLocally(): void {
+    if (!this.searchPlateData || this.isPlateSearchEmpty()) {
+      this.sessions = this.allSessions;
+      return;
+    }
+
+    const searchLeft = this.searchPlateData.left?.trim().toLowerCase() || '';
+    const searchRight = this.searchPlateData.right?.trim().toLowerCase() || '';
+    const searchType = this.searchPlateData.type;
+
+    this.sessions = this.allSessions.filter(session => {
+      // If session has plate object, use structured search
+      if (session.plate) {
+        // Check plate type matches
+        if (session.plate.type !== searchType) {
+          return false;
+        }
+
+        // Check left part (starts with)
+        if (searchLeft) {
+          const sessionLeft = (session.plate.left || '').toLowerCase();
+          if (!sessionLeft.startsWith(searchLeft)) {
+            return false;
+          }
+        }
+
+        // Check right part (starts with)
+        if (searchRight) {
+          const sessionRight = (session.plate.right || '').toLowerCase();
+          if (!sessionRight.startsWith(searchRight)) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      // Fallback: search in licensePlate string for older sessions
+      const licensePlate = session.licensePlate.toLowerCase();
+      const searchTerm = (searchLeft + searchRight).toLowerCase();
+      return searchTerm ? licensePlate.includes(searchTerm) : true;
+    });
+  }
+
+  private isPlateSearchEmpty(): boolean {
+    if (!this.searchPlateData) return true;
+    const hasLeft = this.searchPlateData.left?.trim();
+    const hasRight = this.searchPlateData.right?.trim();
+    return !hasLeft && !hasRight;
   }
 
   private calculateStats(): void {

@@ -173,6 +173,9 @@ export class ApiService {
     agentId?: string;
     status?: TicketStatus;
     licensePlate?: string;
+    plateLeft?: string;
+    plateRight?: string;
+    plateType?: string;
     limit?: number;
     skip?: number;
   }): Observable<{ data: Ticket[]; success: boolean; count: number }> {
@@ -188,6 +191,15 @@ export class ApiService {
     }
     if (params?.licensePlate) {
       httpParams = httpParams.set('licensePlate', params.licensePlate);
+    }
+    if (params?.plateLeft) {
+      httpParams = httpParams.set('plateLeft', params.plateLeft);
+    }
+    if (params?.plateRight) {
+      httpParams = httpParams.set('plateRight', params.plateRight);
+    }
+    if (params?.plateType) {
+      httpParams = httpParams.set('plateType', params.plateType);
     }
     if (params?.limit) {
       httpParams = httpParams.set('limit', params.limit.toString());

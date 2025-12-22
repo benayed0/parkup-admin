@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Subject } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
 import { Ticket, TicketStatus, TicketReason } from '../../core/models/ticket.model';
 import { Agent } from '../../core/models/agent.model';
@@ -54,12 +56,6 @@ import {
             [showPreview]="false"
             (plateChange)="onPlateSearchChange($event)"
           ></app-license-plate-input>
-          <button class="btn-search" (click)="loadTickets()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -280,25 +276,6 @@ import {
       display: flex;
       align-items: flex-end;
       gap: var(--spacing-sm);
-    }
-
-    .btn-search {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      background: var(--color-secondary);
-      border: none;
-      border-radius: var(--radius-sm);
-      color: white;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    .btn-search:hover {
-      background: #1d4ed8;
     }
 
     .loading {
@@ -699,8 +676,9 @@ import {
     }
   `]
 })
-export class TicketsComponent implements OnInit {
+export class TicketsComponent implements OnInit, OnDestroy {
   tickets: Ticket[] = [];
+  allTickets: Ticket[] = []; // All tickets from API (filtered by status/agent)
   agents: Agent[] = [];
   isLoading = true;
 
@@ -710,6 +688,9 @@ export class TicketsComponent implements OnInit {
   searchPlateData: LicensePlate | null = null;
 
   message: { type: 'success' | 'error'; text: string } | null = null;
+
+  private plateSearch$ = new Subject<string>();
+  private destroy$ = new Subject<void>();
 
   private reasonLabels: Record<TicketReason, string> = {
     [TicketReason.NO_SESSION]: 'Sans session',
@@ -734,6 +715,21 @@ export class TicketsComponent implements OnInit {
   ngOnInit(): void {
     this.loadAgents();
     this.loadTickets();
+
+    // Debounced plate search - filter locally for instant feedback
+    this.plateSearch$
+      .pipe(
+        debounceTime(150), // Faster since it's local
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        this.filterTicketsLocally();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadAgents(): void {
@@ -748,27 +744,26 @@ export class TicketsComponent implements OnInit {
   onPlateSearchChange(plate: LicensePlate): void {
     this.searchPlateData = plate;
     this.searchPlate = plate.formatted || '';
+    // Include type in the search key so changing type also triggers search
+    this.plateSearch$.next(`${plate.type}:${this.searchPlate}`);
   }
 
   loadTickets(): void {
     this.isLoading = true;
     const params: any = {};
 
+    // Only send status/agent filters to API
     if (this.filterStatus) {
       params.status = this.filterStatus;
     }
     if (this.filterAgentId) {
       params.agentId = this.filterAgentId;
     }
-    // Use formatted plate string for search
-    const plateSearch = this.searchPlateData?.formatted || this.searchPlate;
-    if (plateSearch.trim()) {
-      params.licensePlate = plateSearch.trim().toUpperCase();
-    }
 
     this.apiService.getTickets(params).subscribe({
       next: ({ data }) => {
-        this.tickets = data;
+        this.allTickets = data;
+        this.filterTicketsLocally();
         this.isLoading = false;
       },
       error: (err) => {
@@ -777,6 +772,57 @@ export class TicketsComponent implements OnInit {
         this.isLoading = false;
       },
     });
+  }
+
+  private filterTicketsLocally(): void {
+    if (!this.searchPlateData || this.isPlateSearchEmpty()) {
+      this.tickets = this.allTickets;
+      return;
+    }
+
+    const searchLeft = this.searchPlateData.left?.trim().toLowerCase() || '';
+    const searchRight = this.searchPlateData.right?.trim().toLowerCase() || '';
+    const searchType = this.searchPlateData.type;
+
+    this.tickets = this.allTickets.filter(ticket => {
+      // If ticket has plate object, use structured search
+      if (ticket.plate) {
+        // Check plate type matches
+        if (ticket.plate.type !== searchType) {
+          return false;
+        }
+
+        // Check left part (starts with)
+        if (searchLeft) {
+          const ticketLeft = (ticket.plate.left || '').toLowerCase();
+          if (!ticketLeft.startsWith(searchLeft)) {
+            return false;
+          }
+        }
+
+        // Check right part (starts with)
+        if (searchRight) {
+          const ticketRight = (ticket.plate.right || '').toLowerCase();
+          if (!ticketRight.startsWith(searchRight)) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      // Fallback: search in licensePlate string for older tickets
+      const licensePlate = ticket.licensePlate.toLowerCase();
+      const searchTerm = (searchLeft + searchRight).toLowerCase();
+      return searchTerm ? licensePlate.includes(searchTerm) : true;
+    });
+  }
+
+  private isPlateSearchEmpty(): boolean {
+    if (!this.searchPlateData) return true;
+    const hasLeft = this.searchPlateData.left?.trim();
+    const hasRight = this.searchPlateData.right?.trim();
+    return !hasLeft && !hasRight;
   }
 
   getReasonLabel(reason: TicketReason): string {

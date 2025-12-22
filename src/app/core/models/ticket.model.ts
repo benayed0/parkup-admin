@@ -1,4 +1,5 @@
 import { Agent } from './agent.model';
+import { LicensePlate } from './parking-session.model';
 
 export enum TicketReason {
   NO_SESSION = 'NO_SESSION',
@@ -32,6 +33,7 @@ export interface Ticket {
   parkingSessionId?: string;
   userId?: string;
   agentId: Agent | string;
+  plate?: LicensePlate;
   licensePlate: string;
   reason: TicketReason;
   fineAmount: number;
