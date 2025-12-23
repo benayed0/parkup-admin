@@ -2,18 +2,16 @@ import { Agent } from './agent.model';
 import { LicensePlate } from './parking-session.model';
 
 export enum TicketReason {
-  NO_SESSION = 'NO_SESSION',
-  EXPIRED_SESSION = 'EXPIRED_SESSION',
-  OVERSTAYED = 'OVERSTAYED',
-  WRONG_ZONE = 'WRONG_ZONE',
+  POUND = 'pound',
+  CAR_SABOT = 'car_sabot',
 }
 
 export enum TicketStatus {
-  PENDING = 'PENDING',
-  PAID = 'PAID',
-  APPEALED = 'APPEALED',
-  DISMISSED = 'DISMISSED',
-  OVERDUE = 'OVERDUE',
+  PENDING = 'pending',
+  PAID = 'paid',
+  APPEALED = 'appealed',
+  DISMISSED = 'dismissed',
+  OVERDUE = 'overdue',
 }
 
 export enum PaymentMethod {
