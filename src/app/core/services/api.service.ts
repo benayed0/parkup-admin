@@ -234,6 +234,16 @@ export class ApiService {
     );
   }
 
+  payTicket(
+    id: string,
+    paymentMethod: string
+  ): Observable<{ data: Ticket; success: boolean }> {
+    return this.http.patch<{ data: Ticket; success: boolean }>(
+      `${this.apiUrl}/tickets/${id}/pay`,
+      { paymentMethod }
+    );
+  }
+
   deleteTicket(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/tickets/${id}`);
   }
