@@ -1,8 +1,10 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, takeUntil } from 'rxjs/operators';
+import * as L from 'leaflet';
+import 'leaflet.markercluster';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import {
@@ -234,12 +236,43 @@ interface SessionStats {
         </div>
       </div>
 
+      <!-- View Tabs -->
+      <div class="view-tabs">
+        <button
+          class="tab-btn"
+          [class.active]="viewMode === 'list'"
+          (click)="setViewMode('list')"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          Liste
+        </button>
+        <button
+          class="tab-btn"
+          [class.active]="viewMode === 'map'"
+          (click)="setViewMode('map')"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+            <line x1="8" y1="2" x2="8" y2="18"></line>
+            <line x1="16" y1="6" x2="16" y2="22"></line>
+          </svg>
+          Carte
+        </button>
+      </div>
+
       @if (isLoading) {
       <div class="loading">
         <div class="spinner"></div>
         <p>Chargement...</p>
       </div>
-      } @else {
+      } @else if (viewMode === 'list') {
       <!-- Desktop Table View -->
       <div class="table-container desktop-only">
         <table class="data-table">
@@ -294,6 +327,26 @@ interface SessionStats {
               </td>
               <td>
                 <div class="actions">
+                  @if (session.location?.coordinates) {
+                  <button
+                    class="btn-icon locate"
+                    title="Voir sur la carte"
+                    (click)="locateOnMap(session)"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                  </button>
+                  }
                   @if (session.status === 'active') {
                   <button
                     class="btn-icon warning"
@@ -445,6 +498,23 @@ interface SessionStats {
             </div>
           </div>
           <div class="card-actions">
+            @if (session.location?.coordinates) {
+            <button class="btn-action locate" (click)="locateOnMap(session)">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              Carte
+            </button>
+            }
             @if (session.status === 'active') {
             <button
               class="btn-action warning"
@@ -525,6 +595,19 @@ interface SessionStats {
           >{{ sessions.length }} session(s) affichee(s) sur
           {{ stats.totalSessions }}</span
         >
+      </div>
+      } @else if (viewMode === 'map') {
+      <!-- Map View -->
+      <div class="map-container">
+        <div id="sessions-map"></div>
+        @if (sessions.length === 0) {
+        <div class="map-empty-overlay">
+          <p>Aucune session à afficher sur la carte</p>
+        </div>
+        }
+      </div>
+      <div class="table-footer">
+        <span>{{ sessions.length }} session(s) sur la carte</span>
       </div>
       }
 
@@ -660,6 +743,101 @@ interface SessionStats {
       .btn-primary:disabled {
         background: var(--app-border);
         cursor: not-allowed;
+      }
+
+      /* View Tabs */
+      .view-tabs {
+        display: flex;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .tab-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-sm);
+        background: var(--app-surface);
+        color: var(--app-text-secondary);
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .tab-btn:hover {
+        background: var(--app-surface-variant);
+        color: var(--app-text-primary);
+      }
+
+      .tab-btn.active {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+      }
+
+      .tab-btn svg {
+        flex-shrink: 0;
+      }
+
+      /* Map Container */
+      .map-container {
+        position: relative;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      #sessions-map {
+        width: 100%;
+        height: 500px;
+      }
+
+      .map-empty-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--app-text-secondary);
+      }
+
+      /* Cluster marker styles */
+      :host ::ng-deep .session-cluster {
+        background: transparent;
+      }
+
+      :host ::ng-deep .session-cluster-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border: 3px solid white;
+        border-radius: 50%;
+        color: white;
+        font-weight: 700;
+        font-size: 14px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(59, 130, 246, 0.3);
+        animation: pulse-cluster 2s infinite;
+      }
+
+      @keyframes pulse-cluster {
+        0%, 100% {
+          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+        50% {
+          box-shadow: 0 3px 15px rgba(0, 0, 0, 0.4), 0 0 0 6px rgba(59, 130, 246, 0.2);
+        }
       }
 
       /* Statistics Cards */
@@ -975,6 +1153,11 @@ interface SessionStats {
       .btn-icon.danger:hover {
         background: rgba(239, 68, 68, 0.2);
         color: var(--color-error);
+      }
+
+      .btn-icon.locate:hover {
+        background: rgba(139, 92, 246, 0.2);
+        color: #8b5cf6;
       }
 
       .empty {
@@ -1357,6 +1540,16 @@ interface SessionStats {
           border-color: rgba(239, 68, 68, 0.3);
         }
 
+        .btn-action.locate {
+          background: rgba(139, 92, 246, 0.1);
+          color: #8b5cf6;
+          border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-action.locate:hover {
+          background: rgba(139, 92, 246, 0.2);
+        }
+
         .empty-state {
           text-align: center;
           padding: 40px var(--spacing-md);
@@ -1381,7 +1574,7 @@ interface SessionStats {
     `,
   ],
 })
-export class ParkingSessionsComponent implements OnInit, OnDestroy {
+export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewInit {
   sessions: ParkingSession[] = [];
   allSessions: ParkingSession[] = [];
   zones: ParkingZone[] = [];
@@ -1391,6 +1584,12 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy {
   filterZoneId = '';
   searchPlate = '';
   searchPlateData: LicensePlate | null = null;
+
+  viewMode: 'list' | 'map' = 'list';
+  private map: L.Map | null = null;
+  private markersLayer: L.MarkerClusterGroup | null = null;
+  private sessionMarkers: Map<string, L.Marker> = new Map();
+  private pendingLocateSessionId: string | null = null;
 
   showExtendModal = false;
   selectedSession: ParkingSession | null = null;
@@ -1440,6 +1639,154 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
+  }
+
+  ngAfterViewInit(): void {
+    // Map will be initialized when switching to map view
+  }
+
+  setViewMode(mode: 'list' | 'map'): void {
+    this.viewMode = mode;
+    if (mode === 'map') {
+      setTimeout(() => this.initMap(), 0);
+    }
+  }
+
+  private initMap(): void {
+    if (this.map) {
+      this.updateMapMarkers();
+      return;
+    }
+
+    const mapElement = document.getElementById('sessions-map');
+    if (!mapElement) return;
+
+    // Default to Tunisia center
+    this.map = L.map('sessions-map', {
+      center: [36.8065, 10.1815],
+      zoom: 12,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(this.map);
+
+    this.markersLayer = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 50,
+      spiderfyOnMaxZoom: true,
+      disableClusteringAtZoom: 18,
+      iconCreateFunction: (cluster) => {
+        const count = cluster.getChildCount();
+        const size = count < 10 ? 40 : count < 50 ? 50 : 60;
+        return L.divIcon({
+          html: `<div class="session-cluster-icon">${count}</div>`,
+          className: 'session-cluster',
+          iconSize: L.point(size, size),
+        });
+      },
+    }).addTo(this.map);
+
+    this.updateMapMarkers();
+  }
+
+  private updateMapMarkers(): void {
+    if (!this.map || !this.markersLayer) return;
+
+    this.markersLayer.clearLayers();
+    this.sessionMarkers.clear();
+
+    const bounds: L.LatLngBounds | null = this.sessions.length > 0 ? L.latLngBounds([]) : null;
+
+    this.sessions.forEach((session) => {
+      if (!session.location?.coordinates) return;
+
+      const [lng, lat] = session.location.coordinates;
+      const marker = L.marker([lat, lng], {
+        icon: this.getMarkerIcon(session.status),
+      });
+
+      const popupContent = this.createPopupContent(session);
+      marker.bindPopup(popupContent, { maxWidth: 300 });
+
+      marker.addTo(this.markersLayer!);
+      this.sessionMarkers.set(session._id, marker);
+      bounds?.extend([lat, lng]);
+    });
+
+    if (this.pendingLocateSessionId) {
+      const sessionId = this.pendingLocateSessionId;
+      this.pendingLocateSessionId = null;
+      setTimeout(() => this.focusOnSession(sessionId), 100);
+    } else if (bounds && bounds.isValid()) {
+      this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }
+
+  locateOnMap(session: ParkingSession): void {
+    if (!session.location?.coordinates) return;
+
+    this.viewMode = 'map';
+    this.pendingLocateSessionId = session._id;
+
+    setTimeout(() => this.initMap(), 0);
+  }
+
+  private focusOnSession(sessionId: string): void {
+    const marker = this.sessionMarkers.get(sessionId);
+    if (!marker || !this.map) return;
+
+    const latLng = marker.getLatLng();
+    this.map.setView(latLng, 16, { animate: true });
+
+    setTimeout(() => {
+      marker.openPopup();
+    }, 300);
+  }
+
+  private getMarkerIcon(status: ParkingSessionStatus): L.Icon {
+    const colorMap: Record<string, string> = {
+      active: '#22c55e',
+      completed: '#3b82f6',
+      expired: '#f59e0b',
+      cancelled: '#9e9e9e',
+    };
+
+    const color = colorMap[status] || '#6b7280';
+
+    return L.icon({
+      iconUrl: `data:image/svg+xml,${encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
+          <path fill="${color}" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle fill="white" cx="12" cy="9" r="3"/>
+        </svg>
+      `)}`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
+    });
+  }
+
+  private createPopupContent(session: ParkingSession): string {
+    return `
+      <div style="font-family: system-ui, sans-serif; min-width: 200px;">
+        <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #1e3a5f;">
+          ${session.licensePlate}
+        </div>
+        <div style="display: grid; gap: 6px; font-size: 13px;">
+          <div><strong>Zone:</strong> ${session.zoneName}</div>
+          <div><strong>Durée:</strong> ${session.durationMinutes} min</div>
+          <div><strong>Montant:</strong> ${session.amount} DT</div>
+          <div><strong>Statut:</strong> ${this.getStatusLabel(session.status)}</div>
+          <div><strong>Début:</strong> ${new Date(session.startTime).toLocaleString('fr-FR')}</div>
+          <div><strong>Fin:</strong> ${new Date(session.endTime).toLocaleString('fr-FR')}</div>
+        </div>
+      </div>
+    `;
   }
 
   get isSuperAdmin(): boolean {
