@@ -19,6 +19,17 @@ import {
   LicensePlateDisplayComponent,
 } from '../../shared/components/license-plate-input';
 
+interface TicketStats {
+  totalTickets: number;
+  pendingTickets: number;
+  todayTickets: number;
+  todayFines: number;
+  totalFines: number;
+  paidTickets: number;
+  overdueTickets: number;
+  paidToday: number;
+}
+
 @Component({
   selector: 'app-tickets',
   standalone: true,
@@ -36,6 +47,90 @@ import {
           <p>Liste des amendes de stationnement</p>
         </div>
       </header>
+
+      <!-- Statistics Cards -->
+      <div class="stats-grid">
+        <div class="stat-card pending">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.pendingTickets }}</span>
+            <span class="stat-label">En attente</span>
+          </div>
+        </div>
+
+        <div class="stat-card today">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.todayTickets }}</span>
+            <span class="stat-label">Tickets aujourd'hui</span>
+          </div>
+        </div>
+
+        <div class="stat-card revenue">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.todayFines | number : '1.2-2' }} TND</span>
+            <span class="stat-label">Amendes aujourd'hui</span>
+          </div>
+        </div>
+
+        <div class="stat-card total">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+              <polyline points="17 6 23 6 23 12"></polyline>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.totalFines | number : '1.2-2' }} TND</span>
+            <span class="stat-label">Total amendes</span>
+          </div>
+        </div>
+
+        <div class="stat-card paid">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.paidToday }}</span>
+            <span class="stat-label">Payés aujourd'hui</span>
+          </div>
+        </div>
+
+        <div class="stat-card overdue">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.overdueTickets }}</span>
+            <span class="stat-label">En retard</span>
+          </div>
+        </div>
+      </div>
 
       <!-- View Tabs -->
       <div class="view-tabs">
@@ -381,7 +476,7 @@ import {
       </div>
 
       <div class="table-footer">
-        <span>{{ tickets.length }} ticket(s) affiché(s)</span>
+        <span>{{ tickets.length }} ticket(s) affiché(s) sur {{ stats.totalTickets }}</span>
       </div>
       } @else if (viewMode === 'map') {
       <!-- Map View -->
@@ -428,6 +523,87 @@ import {
         margin: var(--spacing-sm) 0 0;
         color: var(--app-text-secondary);
         font-size: 0.875rem;
+      }
+
+      /* Statistics Cards */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-xl);
+      }
+
+      .stat-card {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-lg);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        transition: all 0.2s ease;
+      }
+
+      .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+      }
+
+      .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .stat-card.pending .stat-icon {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--color-warning);
+      }
+
+      .stat-card.today .stat-icon {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--color-info);
+      }
+
+      .stat-card.revenue .stat-icon {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--color-warning);
+      }
+
+      .stat-card.total .stat-icon {
+        background: rgba(156, 39, 176, 0.1);
+        color: #9c27b0;
+      }
+
+      .stat-card.paid .stat-icon {
+        background: rgba(34, 197, 94, 0.1);
+        color: var(--color-success);
+      }
+
+      .stat-card.overdue .stat-icon {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--color-error);
+      }
+
+      .stat-content {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--app-text-primary);
+        line-height: 1.2;
+      }
+
+      .stat-label {
+        font-size: 0.813rem;
+        color: var(--app-text-secondary);
+        margin-top: 4px;
       }
 
       .view-tabs {
@@ -826,6 +1002,18 @@ import {
           display: block !important;
         }
 
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .stat-card {
+          padding: var(--spacing-md);
+        }
+
+        .stat-value {
+          font-size: 1.25rem;
+        }
+
         .filters {
           flex-direction: column;
         }
@@ -1004,6 +1192,17 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
   private pendingLocateTicketId: string | null = null;
 
   message: { type: 'success' | 'error'; text: string } | null = null;
+
+  stats: TicketStats = {
+    totalTickets: 0,
+    pendingTickets: 0,
+    todayTickets: 0,
+    todayFines: 0,
+    totalFines: 0,
+    paidTickets: 0,
+    overdueTickets: 0,
+    paidToday: 0,
+  };
 
   private plateSearch$ = new Subject<string>();
   private destroy$ = new Subject<void>();
@@ -1232,6 +1431,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       next: ({ data }) => {
         this.allTickets = data;
         this.filterTicketsLocally();
+        this.calculateStats();
         this.isLoading = false;
       },
       error: (err) => {
@@ -1240,6 +1440,46 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
         this.isLoading = false;
       },
     });
+  }
+
+  private calculateStats(): void {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const todayTickets = this.allTickets.filter((t) => {
+      const ticketDate = new Date(t.issuedAt);
+      return ticketDate >= today;
+    });
+
+    const paidTodayTickets = todayTickets.filter(
+      (t) => t.status === TicketStatus.PAID
+    );
+
+    const pendingTickets = this.allTickets.filter(
+      (t) => t.status === TicketStatus.PENDING
+    );
+
+    const overdueTickets = this.allTickets.filter(
+      (t) => t.status === TicketStatus.OVERDUE
+    );
+
+    const paidTickets = this.allTickets.filter(
+      (t) => t.status === TicketStatus.PAID
+    );
+
+    this.stats = {
+      totalTickets: this.allTickets.length,
+      pendingTickets: pendingTickets.length,
+      todayTickets: todayTickets.length,
+      todayFines: todayTickets.reduce((sum, t) => sum + (t.fineAmount || 0), 0),
+      totalFines: this.allTickets.reduce(
+        (sum, t) => sum + (t.fineAmount || 0),
+        0
+      ),
+      paidTickets: paidTickets.length,
+      overdueTickets: overdueTickets.length,
+      paidToday: paidTodayTickets.length,
+    };
   }
 
   private filterTicketsLocally(): void {
@@ -1349,6 +1589,11 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
         if (index !== -1) {
           this.tickets[index] = data;
         }
+        const allIndex = this.allTickets.findIndex((t) => t._id === ticket._id);
+        if (allIndex !== -1) {
+          this.allTickets[allIndex] = data;
+        }
+        this.calculateStats();
         this.showMessage('success', 'Ticket annulé');
       },
       error: (err) => {
@@ -1369,11 +1614,11 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
         if (index !== -1) {
           this.tickets[index] = data;
         }
-        // Also update allTickets for filtering consistency
         const allIndex = this.allTickets.findIndex((t) => t._id === ticket._id);
         if (allIndex !== -1) {
           this.allTickets[allIndex] = data;
         }
+        this.calculateStats();
         this.showMessage('success', 'Ticket marqué comme payé');
       },
       error: (err) => {
@@ -1393,6 +1638,8 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.apiService.deleteTicket(ticket._id).subscribe({
       next: () => {
         this.tickets = this.tickets.filter((t) => t._id !== ticket._id);
+        this.allTickets = this.allTickets.filter((t) => t._id !== ticket._id);
+        this.calculateStats();
         this.showMessage('success', 'Ticket supprimé');
       },
       error: (err) => {
