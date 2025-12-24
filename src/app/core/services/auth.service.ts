@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, tap, catchError, of, switchMap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Operator } from '../models/operator.model';
 
@@ -10,6 +10,11 @@ interface AuthResponse {
     accessToken: string;
     operator: Operator;
   };
+}
+
+interface ProfileResponse {
+  success: boolean;
+  data: Operator;
 }
 
 interface OtpResponse {
@@ -23,27 +28,57 @@ interface OtpResponse {
 export class AuthService {
   private readonly API_URL = environment.apiUrl;
   private readonly TOKEN_KEY = 'parkup_operator_token';
-  private readonly OPERATOR_KEY = 'parkup_operator_user';
 
   private currentOperatorSubject = new BehaviorSubject<Operator | null>(null);
   public currentOperator$ = this.currentOperatorSubject.asObservable();
 
-  constructor(private http: HttpClient) {
-    this.loadStoredOperator();
+  private initialized = false;
+
+  constructor(private http: HttpClient) {}
+
+  /**
+   * Initialize auth state by fetching profile if token exists
+   * Should be called on app startup
+   */
+  initialize(): Observable<Operator | null> {
+    if (this.initialized) {
+      return of(this.currentOperatorSubject.value);
+    }
+
+    const token = this.getToken();
+    if (!token) {
+      this.initialized = true;
+      return of(null);
+    }
+
+    return this.fetchProfile().pipe(
+      tap(() => {
+        this.initialized = true;
+      }),
+      catchError(() => {
+        this.logout();
+        this.initialized = true;
+        return of(null);
+      })
+    );
   }
 
-  private loadStoredOperator(): void {
-    const token = localStorage.getItem(this.TOKEN_KEY);
-    const operatorJson = localStorage.getItem(this.OPERATOR_KEY);
-
-    if (token && operatorJson) {
-      try {
-        const operator = JSON.parse(operatorJson);
-        this.currentOperatorSubject.next(operator);
-      } catch {
+  /**
+   * Fetch the current operator's profile from the API
+   */
+  fetchProfile(): Observable<Operator | null> {
+    return this.http.get<ProfileResponse>(`${this.API_URL}/operators/me`).pipe(
+      tap((response) => {
+        if (response.success && response.data) {
+          this.currentOperatorSubject.next(response.data);
+        }
+      }),
+      switchMap((response) => of(response.data)),
+      catchError(() => {
         this.logout();
-      }
-    }
+        return of(null);
+      })
+    );
   }
 
   get isAuthenticated(): boolean {
@@ -73,8 +108,8 @@ export class AuthService {
       .pipe(
         tap((response) => {
           if (response.success && response.data) {
+            // Only store the token, not the user info
             localStorage.setItem(this.TOKEN_KEY, response.data.accessToken);
-            localStorage.setItem(this.OPERATOR_KEY, JSON.stringify(response.data.operator));
             this.currentOperatorSubject.next(response.data.operator);
           }
         })
@@ -83,7 +118,6 @@ export class AuthService {
 
   logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.OPERATOR_KEY);
     this.currentOperatorSubject.next(null);
   }
 }

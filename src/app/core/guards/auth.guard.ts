@@ -9,7 +9,8 @@ export class AuthGuard implements CanActivate {
   constructor(private authService: AuthService, private router: Router) {}
 
   canActivate(): boolean {
-    if (this.authService.isAuthenticated) {
+    // Check if token exists and operator profile was loaded
+    if (this.authService.isAuthenticated && this.authService.currentOperator) {
       return true;
     }
 

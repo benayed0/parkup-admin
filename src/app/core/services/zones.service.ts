@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Zone } from '../models/zone.model';
+import { Zone, CreateZoneDto, UpdateZoneDto } from '../models/zone.model';
 
 interface ZonesResponse {
   success: boolean;
@@ -38,5 +38,17 @@ export class ZonesService {
 
   getByCode(code: string): Observable<ZoneResponse> {
     return this.http.get<ZoneResponse>(`${this.API_URL}/code/${code}`);
+  }
+
+  create(zone: CreateZoneDto): Observable<ZoneResponse> {
+    return this.http.post<ZoneResponse>(this.API_URL, zone);
+  }
+
+  update(id: string, zone: UpdateZoneDto): Observable<ZoneResponse> {
+    return this.http.put<ZoneResponse>(`${this.API_URL}/${id}`, zone);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/${id}`);
   }
 }

@@ -33,17 +33,17 @@ export const routes: Routes = [
           ),
       },
       {
-        path: 'streets',
-        loadComponent: () =>
-          import('./features/streets-editor/streets-editor.component').then(
-            (m) => m.StreetsEditorComponent
-          ),
-      },
-      {
         path: 'operators',
         loadComponent: () =>
           import('./features/operators/operators.component').then(
             (m) => m.OperatorsComponent
+          ),
+      },
+      {
+        path: 'zones',
+        loadComponent: () =>
+          import('./features/zones/zones.component').then(
+            (m) => m.ZonesComponent
           ),
       },
       {
