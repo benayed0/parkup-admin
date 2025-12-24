@@ -6,6 +6,12 @@ export interface ParkingZone {
     type: 'Point';
     coordinates: [number, number]; // [longitude, latitude]
   };
+  hourlyRate: number;
+  operatingHours: string;
+  prices: {
+    car_sabot: number;
+    pound: number;
+  };
   description?: string;
   isActive: boolean;
   createdAt?: string;
