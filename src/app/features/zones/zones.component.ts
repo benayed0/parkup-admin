@@ -46,6 +46,12 @@ interface DrawnStreet {
   id?: string;
 }
 
+interface ZoneBoundary {
+  layer: L.Polygon;
+  coordinates: number[][];
+  originalCoordinates?: number[][]; // Track original for comparison
+}
+
 type ViewMode = 'list' | 'streets';
 
 @Component({
@@ -132,6 +138,16 @@ type ViewMode = 'list' | 'streets';
               <div class="detail-item">
                 <span class="label">Fourriere</span>
                 <span class="value">{{ zone.prices?.pound || 0 }} TND</span>
+              </div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-item">
+                <span class="label">Places</span>
+                <span class="value">{{ zone.numberOfPlaces || 0 }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Occupation</span>
+                <span class="value">--</span>
               </div>
             </div>
           </div>
@@ -236,6 +252,75 @@ type ViewMode = 'list' | 'streets';
                 ></span>
                 {{ type.label }}
               </button>
+              }
+            </div>
+          </div>
+
+          <!-- Zone Boundary Section -->
+          <div class="section">
+            <label>Limite de zone</label>
+            <div class="boundary-controls">
+              @if (zoneBoundary) {
+                <div class="boundary-status has-boundary">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  Limite definie ({{ zoneBoundary.coordinates.length }} points)
+                </div>
+                <div class="boundary-actions">
+                  @if (isEditingBoundary) {
+                    <button class="btn btn-sm btn-success" (click)="finishEditingBoundary()">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      Terminer
+                    </button>
+                    <button class="btn btn-sm btn-secondary" (click)="cancelEditingBoundary()">
+                      Annuler
+                    </button>
+                  } @else {
+                    <button class="btn btn-sm btn-info" (click)="startEditingBoundary()">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                      Modifier
+                    </button>
+                    <button class="btn btn-sm btn-danger-outline" (click)="clearBoundary()">
+                      Effacer
+                    </button>
+                  }
+                </div>
+                @if (isEditingBoundary) {
+                  <p class="hint edit-hint">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    Glissez les points pour modifier la limite
+                  </p>
+                }
+              } @else {
+                <div class="boundary-status no-boundary">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                  Aucune limite
+                </div>
+                <p class="hint">Utilisez l'outil polygone pour dessiner la limite</p>
+              }
+              @if (hasUnsavedBoundary()) {
+                <button
+                  class="btn btn-sm btn-success full-width"
+                  [disabled]="isSavingBoundary || isEditingBoundary"
+                  (click)="saveBoundary()"
+                >
+                  @if (isSavingBoundary) { Sauvegarde... } @else { Sauvegarder limite }
+                </button>
               }
             </div>
           </div>
@@ -387,18 +472,32 @@ type ViewMode = 'list' | 'streets';
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="hourlyRate">Tarif horaire (TND)</label>
-              <input
-                type="number"
-                id="hourlyRate"
-                [(ngModel)]="formData.hourlyRate"
-                name="hourlyRate"
-                required
-                min="0"
-                step="0.1"
-                placeholder="1.5"
-              />
+            <div class="form-row">
+              <div class="form-group">
+                <label for="hourlyRate">Tarif horaire (TND)</label>
+                <input
+                  type="number"
+                  id="hourlyRate"
+                  [(ngModel)]="formData.hourlyRate"
+                  name="hourlyRate"
+                  required
+                  min="0"
+                  step="0.1"
+                  placeholder="1.5"
+                />
+              </div>
+              <div class="form-group">
+                <label for="numberOfPlaces">Nombre de places</label>
+                <input
+                  type="number"
+                  id="numberOfPlaces"
+                  [(ngModel)]="formData.numberOfPlaces"
+                  name="numberOfPlaces"
+                  min="0"
+                  step="1"
+                  placeholder="50"
+                />
+              </div>
             </div>
 
             <div class="form-group">
@@ -889,6 +988,63 @@ type ViewMode = 'list' | 'streets';
         border: 2px solid rgba(0, 0, 0, 0.2);
       }
 
+      .boundary-controls {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+      }
+
+      .boundary-status {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: 10px 14px;
+        border-radius: var(--radius-sm);
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+
+      .boundary-status.has-boundary {
+        background: rgba(34, 197, 94, 0.1);
+        color: #059669;
+      }
+
+      .boundary-status.no-boundary {
+        background: rgba(245, 158, 11, 0.1);
+        color: #d97706;
+      }
+
+      .hint {
+        font-size: 0.75rem;
+        color: var(--app-text-secondary);
+        margin: 0;
+        font-style: italic;
+      }
+
+      .hint.edit-hint {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        background: rgba(14, 165, 233, 0.1);
+        border-radius: var(--radius-sm);
+        color: #0284c7;
+        font-style: normal;
+      }
+
+      .boundary-actions {
+        display: flex;
+        gap: var(--spacing-sm);
+      }
+
+      .boundary-actions .btn {
+        flex: 1;
+      }
+
+      .btn.full-width {
+        width: 100%;
+      }
+
       .stats {
         display: flex;
         gap: var(--spacing-md);
@@ -1358,12 +1514,16 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedZone: Zone | null = null;
   map!: L.Map;
   drawnItems!: L.FeatureGroup;
+  boundaryLayer!: L.FeatureGroup;
   drawControl!: L.Control.Draw;
   selectedStreetType: StreetType = StreetType.PAYABLE;
   drawnStreets: DrawnStreet[] = [];
   existingStreets: Street[] = [];
+  zoneBoundary: ZoneBoundary | null = null;
+  isEditingBoundary = false;
   isLoadingStreets = false;
   isSaving = false;
+  isSavingBoundary = false;
   sidebarOpen = false;
   mapMessage: { type: 'success' | 'error'; text: string } | null = null;
   private mapInitialized = false;
@@ -1413,6 +1573,7 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       hoursTo: '20:00',
       carSabot: null as number | null,
       pound: null as number | null,
+      numberOfPlaces: null as number | null,
     };
   }
 
@@ -1462,6 +1623,7 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       hoursTo,
       carSabot: zone.prices?.car_sabot || 0,
       pound: zone.prices?.pound || 0,
+      numberOfPlaces: zone.numberOfPlaces || 0,
     };
     this.formError = '';
     this.showModal = true;
@@ -1538,6 +1700,7 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
         car_sabot: this.formData.carSabot || 0,
         pound: this.formData.pound || 0,
       },
+      numberOfPlaces: this.formData.numberOfPlaces || 0,
       description: this.formData.description || undefined,
     };
 
@@ -1669,6 +1832,8 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.viewMode = 'list';
     this.drawnStreets = [];
     this.existingStreets = [];
+    this.zoneBoundary = null;
+    this.isEditingBoundary = false;
   }
 
   private initMap(): void {
@@ -1685,8 +1850,16 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(this.map);
 
+    // Boundary layer (underneath streets)
+    this.boundaryLayer = new L.FeatureGroup();
+    this.map.addLayer(this.boundaryLayer);
+
+    // Streets layer (on top)
     this.drawnItems = new L.FeatureGroup();
     this.map.addLayer(this.drawnItems);
+
+    // Display existing boundary if any
+    this.displayExistingBoundary();
 
     this.initDrawControl();
     this.setupDrawEvents();
@@ -1707,7 +1880,17 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
         remove: true,
       },
       draw: {
-        polygon: false,
+        polygon: {
+          allowIntersection: false,
+          showArea: true,
+          shapeOptions: {
+            color: '#9333ea',
+            weight: 3,
+            opacity: 0.8,
+            fillColor: '#9333ea',
+            fillOpacity: 0.15,
+          },
+        },
         rectangle: false,
         circle: false,
         circlemarker: false,
@@ -1727,19 +1910,52 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
   private setupDrawEvents(): void {
     this.map.on(L.Draw.Event.CREATED, (e: L.LeafletEvent) => {
       const event = e as L.DrawEvents.Created;
-      const layer = event.layer as L.Polyline;
 
-      layer.setStyle({
-        color: this.getStreetColor(this.selectedStreetType),
-        weight: 5,
-        opacity: 0.8,
-      });
+      if (event.layerType === 'polygon') {
+        // Handle boundary polygon
+        const polygon = event.layer as L.Polygon;
 
-      this.drawnItems.addLayer(layer);
-      this.drawnStreets.push({
-        layer,
-        type: this.selectedStreetType,
-      });
+        // Remove existing boundary if any
+        if (this.zoneBoundary) {
+          this.boundaryLayer.removeLayer(this.zoneBoundary.layer);
+        }
+
+        polygon.setStyle({
+          color: '#9333ea',
+          weight: 3,
+          opacity: 0.8,
+          fillColor: '#9333ea',
+          fillOpacity: 0.15,
+        });
+
+        this.boundaryLayer.addLayer(polygon);
+
+        // Extract coordinates (convert to [lng, lat] format for storage)
+        const latLngs = polygon.getLatLngs()[0] as L.LatLng[];
+        const coordinates = latLngs.map((ll) => [ll.lng, ll.lat]);
+
+        this.zoneBoundary = {
+          layer: polygon,
+          coordinates,
+        };
+
+        this.showMapMessage('success', 'Limite de zone dessinee. Pensez a sauvegarder.');
+      } else {
+        // Handle street polyline
+        const layer = event.layer as L.Polyline;
+
+        layer.setStyle({
+          color: this.getStreetColor(this.selectedStreetType),
+          weight: 5,
+          opacity: 0.8,
+        });
+
+        this.drawnItems.addLayer(layer);
+        this.drawnStreets.push({
+          layer,
+          type: this.selectedStreetType,
+        });
+      }
     });
 
     this.map.on(L.Draw.Event.DELETED, (e: L.LeafletEvent) => {
@@ -1887,5 +2103,186 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getExistingStreetsCount(): number {
     return this.drawnStreets.filter((s) => s.id).length;
+  }
+
+  // ==================== ZONE BOUNDARY ====================
+
+  private displayExistingBoundary(): void {
+    if (!this.selectedZone?.boundaries || this.selectedZone.boundaries.length === 0) {
+      this.zoneBoundary = null;
+      return;
+    }
+
+    // Convert [lng, lat] to [lat, lng] for Leaflet
+    const latLngs = this.selectedZone.boundaries.map(
+      (coord) => [coord[1], coord[0]] as [number, number]
+    );
+
+    const polygon = L.polygon(latLngs, {
+      color: '#9333ea',
+      weight: 3,
+      opacity: 0.8,
+      fillColor: '#9333ea',
+      fillOpacity: 0.15,
+    });
+
+    this.boundaryLayer.addLayer(polygon);
+
+    this.zoneBoundary = {
+      layer: polygon,
+      coordinates: this.selectedZone.boundaries,
+    };
+  }
+
+  hasUnsavedBoundary(): boolean {
+    if (!this.zoneBoundary || !this.selectedZone) return false;
+
+    const existingBoundaries = this.selectedZone.boundaries || [];
+    const currentCoordinates = this.zoneBoundary.coordinates;
+
+    // Compare coordinates
+    if (existingBoundaries.length !== currentCoordinates.length) return true;
+
+    for (let i = 0; i < existingBoundaries.length; i++) {
+      if (
+        existingBoundaries[i][0] !== currentCoordinates[i][0] ||
+        existingBoundaries[i][1] !== currentCoordinates[i][1]
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  clearBoundary(): void {
+    if (this.zoneBoundary) {
+      this.boundaryLayer.removeLayer(this.zoneBoundary.layer);
+      this.zoneBoundary = null;
+    }
+  }
+
+  saveBoundary(): void {
+    if (!this.selectedZone || !this.zoneBoundary) {
+      this.showMapMessage('error', 'Aucune limite a sauvegarder');
+      return;
+    }
+
+    this.isSavingBoundary = true;
+
+    this.zonesService
+      .update(this.selectedZone._id, {
+        boundaries: this.zoneBoundary.coordinates,
+      })
+      .subscribe({
+        next: () => {
+          // Update local zone data
+          this.selectedZone!.boundaries = this.zoneBoundary!.coordinates;
+
+          // Update original coordinates since we just saved
+          this.zoneBoundary!.originalCoordinates = [...this.zoneBoundary!.coordinates];
+
+          // Also update in the zones list
+          const zoneIndex = this.zones.findIndex(
+            (z) => z._id === this.selectedZone!._id
+          );
+          if (zoneIndex !== -1) {
+            this.zones[zoneIndex].boundaries = this.zoneBoundary!.coordinates;
+          }
+
+          this.showMapMessage('success', 'Limite de zone sauvegardee');
+          this.isSavingBoundary = false;
+        },
+        error: (err) => {
+          console.error('Error saving boundary:', err);
+          this.showMapMessage('error', 'Erreur lors de la sauvegarde de la limite');
+          this.isSavingBoundary = false;
+        },
+      });
+  }
+
+  // ==================== BOUNDARY EDITING ====================
+
+  startEditingBoundary(): void {
+    if (!this.zoneBoundary) return;
+
+    // Store original coordinates for cancel operation
+    this.zoneBoundary.originalCoordinates = [...this.zoneBoundary.coordinates];
+
+    // Enable editing on the polygon layer
+    const layer = this.zoneBoundary.layer as any;
+    if (layer.editing) {
+      layer.editing.enable();
+    }
+
+    // Update polygon style to show it's being edited
+    this.zoneBoundary.layer.setStyle({
+      color: '#f59e0b',
+      weight: 4,
+      opacity: 1,
+      fillColor: '#f59e0b',
+      fillOpacity: 0.2,
+      dashArray: '5, 10',
+    });
+
+    this.isEditingBoundary = true;
+    this.showMapMessage('success', 'Mode edition active - glissez les points');
+  }
+
+  finishEditingBoundary(): void {
+    if (!this.zoneBoundary) return;
+
+    // Disable editing
+    const layer = this.zoneBoundary.layer as any;
+    if (layer.editing) {
+      layer.editing.disable();
+    }
+
+    // Extract updated coordinates from the polygon
+    const latLngs = this.zoneBoundary.layer.getLatLngs()[0] as L.LatLng[];
+    this.zoneBoundary.coordinates = latLngs.map((ll) => [ll.lng, ll.lat]);
+
+    // Reset polygon style
+    this.zoneBoundary.layer.setStyle({
+      color: '#9333ea',
+      weight: 3,
+      opacity: 0.8,
+      fillColor: '#9333ea',
+      fillOpacity: 0.15,
+      dashArray: '',
+    });
+
+    this.isEditingBoundary = false;
+    this.showMapMessage('success', 'Modifications appliquees. Pensez a sauvegarder.');
+  }
+
+  cancelEditingBoundary(): void {
+    if (!this.zoneBoundary || !this.zoneBoundary.originalCoordinates) return;
+
+    // Disable editing
+    const layer = this.zoneBoundary.layer as any;
+    if (layer.editing) {
+      layer.editing.disable();
+    }
+
+    // Restore original coordinates
+    const originalLatLngs = this.zoneBoundary.originalCoordinates.map(
+      (coord) => L.latLng(coord[1], coord[0])
+    );
+    this.zoneBoundary.layer.setLatLngs(originalLatLngs);
+    this.zoneBoundary.coordinates = [...this.zoneBoundary.originalCoordinates];
+
+    // Reset polygon style
+    this.zoneBoundary.layer.setStyle({
+      color: '#9333ea',
+      weight: 3,
+      opacity: 0.8,
+      fillColor: '#9333ea',
+      fillOpacity: 0.15,
+      dashArray: '',
+    });
+
+    this.isEditingBoundary = false;
+    this.showMapMessage('success', 'Modifications annulees');
   }
 }

@@ -13,7 +13,7 @@ import {
   LicensePlate,
   PlateType,
 } from '../../core/models/parking-session.model';
-import { ParkingZone } from '../../core/models/parking-zone.model';
+import { ParkingZone, ZoneOccupation } from '../../core/models/parking-zone.model';
 import { PopulatedZone } from '../../core/models/operator.model';
 import {
   LicensePlateInputComponent,
@@ -203,6 +203,30 @@ interface SessionStats {
           </div>
         </div>
       </div>
+
+      <!-- Zone Occupation -->
+      @if (zoneOccupations.length > 0) {
+      <div class="occupation-section">
+        <h3 class="occupation-title">Occupation des zones</h3>
+        <div class="occupation-grid">
+          @for (zone of zoneOccupations; track zone.zoneId) {
+          <div class="occupation-card" [class.high]="zone.occupationRate >= 80" [class.medium]="zone.occupationRate >= 50 && zone.occupationRate < 80" [class.low]="zone.occupationRate < 50">
+            <div class="occupation-header">
+              <span class="zone-code">{{ zone.zoneCode }}</span>
+              <span class="zone-name">{{ zone.zoneName }}</span>
+            </div>
+            <div class="occupation-bar-container">
+              <div class="occupation-bar" [style.width.%]="zone.occupationRate"></div>
+            </div>
+            <div class="occupation-stats">
+              <span class="occupation-count">{{ zone.activeSessions }} / {{ zone.numberOfPlaces }}</span>
+              <span class="occupation-rate" [class.high]="zone.occupationRate >= 80">{{ zone.occupationRate | number:'1.0-0' }}%</span>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+      }
 
       <!-- Filters -->
       <div class="filters">
@@ -921,6 +945,109 @@ interface SessionStats {
         margin-top: 4px;
       }
 
+      /* Zone Occupation */
+      .occupation-section {
+        margin-bottom: var(--spacing-xl);
+      }
+
+      .occupation-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--app-text-primary);
+        margin: 0 0 var(--spacing-md) 0;
+      }
+
+      .occupation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: var(--spacing-md);
+      }
+
+      .occupation-card {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        transition: all 0.2s ease;
+      }
+
+      .occupation-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+
+      .occupation-card.high {
+        border-left: 3px solid #ef4444;
+      }
+
+      .occupation-card.medium {
+        border-left: 3px solid #f59e0b;
+      }
+
+      .occupation-card.low {
+        border-left: 3px solid #22c55e;
+      }
+
+      .occupation-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-sm);
+      }
+
+      .zone-code {
+        background: var(--color-secondary);
+        color: white;
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .zone-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--app-text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .occupation-bar-container {
+        height: 8px;
+        background: var(--app-surface-variant);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: var(--spacing-sm);
+      }
+
+      .occupation-bar {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        background: linear-gradient(90deg, #22c55e 0%, #f59e0b 60%, #ef4444 100%);
+      }
+
+      .occupation-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .occupation-count {
+        font-size: 0.813rem;
+        color: var(--app-text-secondary);
+      }
+
+      .occupation-rate {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--app-text-primary);
+      }
+
+      .occupation-rate.high {
+        color: #ef4444;
+      }
+
       .filters {
         display: flex;
         gap: var(--spacing-md);
@@ -1578,6 +1705,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
   sessions: ParkingSession[] = [];
   allSessions: ParkingSession[] = [];
   zones: ParkingZone[] = [];
+  zoneOccupations: ZoneOccupation[] = [];
   isLoading = true;
 
   filterStatus = '';
@@ -1947,6 +2075,43 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
       completedToday: completedTodaySessions.length,
       expiredToday: expiredTodaySessions.length,
     };
+
+    this.calculateZoneOccupations();
+  }
+
+  private calculateZoneOccupations(): void {
+    if (!this.zones.length) return;
+
+    const activeSessionsByZone = new Map<string, number>();
+
+    // Count active sessions per zone
+    this.allSessions
+      .filter((s) => s.status === ParkingSessionStatus.ACTIVE)
+      .forEach((session) => {
+        const count = activeSessionsByZone.get(session.zoneId) || 0;
+        activeSessionsByZone.set(session.zoneId, count + 1);
+      });
+
+    // Calculate occupation for each zone
+    this.zoneOccupations = this.zones
+      .filter((zone) => zone.numberOfPlaces > 0)
+      .map((zone) => {
+        const activeSessions = activeSessionsByZone.get(zone._id) || 0;
+        const occupationRate = Math.min(
+          100,
+          Math.round((activeSessions / zone.numberOfPlaces) * 100)
+        );
+
+        return {
+          zoneId: zone._id,
+          zoneName: zone.name,
+          zoneCode: zone.code,
+          numberOfPlaces: zone.numberOfPlaces,
+          activeSessions,
+          occupationRate,
+        };
+      })
+      .sort((a, b) => b.occupationRate - a.occupationRate);
   }
 
   isOverdue(session: ParkingSession): boolean {

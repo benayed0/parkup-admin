@@ -13,7 +13,14 @@ import {
   TicketReason,
 } from '../../core/models/ticket.model';
 import { Agent } from '../../core/models/agent.model';
-import { LicensePlate } from '../../core/models/parking-session.model';
+import {
+  LicensePlate,
+  ParkingSessionStatus,
+} from '../../core/models/parking-session.model';
+import {
+  ParkingZone,
+  ZoneOccupation,
+} from '../../core/models/parking-zone.model';
 import {
   LicensePlateInputComponent,
   LicensePlateDisplayComponent,
@@ -52,7 +59,15 @@ interface TicketStats {
       <div class="stats-grid">
         <div class="stat-card pending">
           <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
@@ -65,7 +80,15 @@ interface TicketStats {
 
         <div class="stat-card today">
           <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
               <line x1="16" y1="2" x2="16" y2="6"></line>
               <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -80,33 +103,63 @@ interface TicketStats {
 
         <div class="stat-card revenue">
           <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <line x1="12" y1="1" x2="12" y2="23"></line>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              <path
+                d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+              ></path>
             </svg>
           </div>
           <div class="stat-content">
-            <span class="stat-value">{{ stats.todayFines | number : '1.2-2' }} TND</span>
+            <span class="stat-value"
+              >{{ stats.todayFines | number : '1.2-2' }} TND</span
+            >
             <span class="stat-label">Amendes aujourd'hui</span>
           </div>
         </div>
 
         <div class="stat-card total">
           <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
               <polyline points="17 6 23 6 23 12"></polyline>
             </svg>
           </div>
           <div class="stat-content">
-            <span class="stat-value">{{ stats.totalFines | number : '1.2-2' }} TND</span>
+            <span class="stat-value"
+              >{{ stats.totalFines | number : '1.2-2' }} TND</span
+            >
             <span class="stat-label">Total amendes</span>
           </div>
         </div>
 
         <div class="stat-card paid">
           <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
@@ -119,7 +172,15 @@ interface TicketStats {
 
         <div class="stat-card overdue">
           <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
@@ -132,6 +193,46 @@ interface TicketStats {
         </div>
       </div>
 
+      <!-- Zone Occupation -->
+      @if (zoneOccupations.length > 0) {
+      <div class="occupation-section">
+        <h3 class="occupation-title">Occupation des zones</h3>
+        <div class="occupation-grid">
+          @for (zone of zoneOccupations; track zone.zoneId) {
+          <div
+            class="occupation-card"
+            [class.high]="zone.occupationRate >= 80"
+            [class.medium]="
+              zone.occupationRate >= 50 && zone.occupationRate < 80
+            "
+            [class.low]="zone.occupationRate < 50"
+          >
+            <div class="occupation-header">
+              <span class="zone-code">{{ zone.zoneCode }}</span>
+              <span class="zone-name">{{ zone.zoneName }}</span>
+            </div>
+            <div class="occupation-bar-container">
+              <div
+                class="occupation-bar"
+                [style.width.%]="zone.occupationRate"
+              ></div>
+            </div>
+            <div class="occupation-stats">
+              <span class="occupation-count"
+                >{{ zone.activeSessions }} / {{ zone.numberOfPlaces }}</span
+              >
+              <span
+                class="occupation-rate"
+                [class.high]="zone.occupationRate >= 80"
+                >{{ zone.occupationRate | number : '1.0-0' }}%</span
+              >
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+      }
+
       <!-- View Tabs -->
       <div class="view-tabs">
         <button
@@ -139,7 +240,15 @@ interface TicketStats {
           [class.active]="viewMode === 'list'"
           (click)="setViewMode('list')"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <line x1="8" y1="6" x2="21" y2="6"></line>
             <line x1="8" y1="12" x2="21" y2="12"></line>
             <line x1="8" y1="18" x2="21" y2="18"></line>
@@ -154,8 +263,18 @@ interface TicketStats {
           [class.active]="viewMode === 'map'"
           (click)="setViewMode('map')"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polygon
+              points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"
+            ></polygon>
             <line x1="8" y1="2" x2="8" y2="18"></line>
             <line x1="16" y1="6" x2="16" y2="22"></line>
           </svg>
@@ -268,12 +387,14 @@ interface TicketStats {
                       stroke="currentColor"
                       stroke-width="2"
                     >
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <path
+                        d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
+                      ></path>
                       <circle cx="12" cy="10" r="3"></circle>
                     </svg>
                   </button>
-                  }
-                  @if (ticket.status === 'pending' || ticket.status === 'overdue') {
+                  } @if (ticket.status === 'pending' || ticket.status ===
+                  'overdue') {
                   <button
                     class="btn-icon paid"
                     title="Marquer comme payé"
@@ -289,11 +410,13 @@ interface TicketStats {
                       stroke-width="2"
                     >
                       <line x1="12" y1="1" x2="12" y2="23"></line>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                      <path
+                        d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+                      ></path>
                     </svg>
                   </button>
-                  }
-                  @if (ticket.status === 'pending' || ticket.status === 'appealed') {
+                  } @if (ticket.status === 'pending' || ticket.status ===
+                  'appealed') {
                   <button
                     class="btn-icon success"
                     title="Annuler"
@@ -414,8 +537,7 @@ interface TicketStats {
               </svg>
               Carte
             </button>
-            }
-            @if (ticket.status === 'pending' || ticket.status === 'overdue') {
+            } @if (ticket.status === 'pending' || ticket.status === 'overdue') {
             <button class="btn-action paid" (click)="payTicket(ticket)">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -427,12 +549,14 @@ interface TicketStats {
                 stroke-width="2"
               >
                 <line x1="12" y1="1" x2="12" y2="23"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                <path
+                  d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+                ></path>
               </svg>
               Payé
             </button>
-            }
-            @if (ticket.status === 'pending' || ticket.status === 'appealed') {
+            } @if (ticket.status === 'pending' || ticket.status === 'appealed')
+            {
             <button class="btn-action success" (click)="dismissTicket(ticket)">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -476,7 +600,10 @@ interface TicketStats {
       </div>
 
       <div class="table-footer">
-        <span>{{ tickets.length }} ticket(s) affiché(s) sur {{ stats.totalTickets }}</span>
+        <span
+          >{{ tickets.length }} ticket(s) affiché(s) sur
+          {{ stats.totalTickets }}</span
+        >
       </div>
       } @else if (viewMode === 'map') {
       <!-- Map View -->
@@ -606,6 +733,114 @@ interface TicketStats {
         margin-top: 4px;
       }
 
+      /* Zone Occupation */
+      .occupation-section {
+        margin-bottom: var(--spacing-xl);
+      }
+
+      .occupation-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--app-text-primary);
+        margin: 0 0 var(--spacing-md) 0;
+      }
+
+      .occupation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: var(--spacing-md);
+      }
+
+      .occupation-card {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        transition: all 0.2s ease;
+      }
+
+      .occupation-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+
+      .occupation-card.high {
+        border-left: 3px solid #ef4444;
+      }
+
+      .occupation-card.medium {
+        border-left: 3px solid #f59e0b;
+      }
+
+      .occupation-card.low {
+        border-left: 3px solid #22c55e;
+      }
+
+      .occupation-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-sm);
+      }
+
+      .zone-code {
+        background: var(--color-secondary);
+        color: white;
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .zone-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--app-text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .occupation-bar-container {
+        height: 8px;
+        background: var(--app-surface-variant);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: var(--spacing-sm);
+      }
+
+      .occupation-bar {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        background: linear-gradient(
+          90deg,
+          #22c55e 0%,
+          #f59e0b 60%,
+          #ef4444 100%
+        );
+      }
+
+      .occupation-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .occupation-count {
+        font-size: 0.813rem;
+        color: var(--app-text-secondary);
+      }
+
+      .occupation-rate {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--app-text-primary);
+      }
+
+      .occupation-rate.high {
+        color: #ef4444;
+      }
+
       .view-tabs {
         display: flex;
         gap: var(--spacing-sm);
@@ -686,16 +921,20 @@ interface TicketStats {
         color: white;
         font-weight: 700;
         font-size: 14px;
-        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(239, 68, 68, 0.3);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3),
+          0 0 0 2px rgba(239, 68, 68, 0.3);
         animation: pulse-cluster 2s infinite;
       }
 
       @keyframes pulse-cluster {
-        0%, 100% {
-          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(239, 68, 68, 0.3);
+        0%,
+        100% {
+          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3),
+            0 0 0 2px rgba(239, 68, 68, 0.3);
         }
         50% {
-          box-shadow: 0 3px 15px rgba(0, 0, 0, 0.4), 0 0 0 6px rgba(239, 68, 68, 0.2);
+          box-shadow: 0 3px 15px rgba(0, 0, 0, 0.4),
+            0 0 0 6px rgba(239, 68, 68, 0.2);
         }
       }
 
@@ -1178,6 +1417,8 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
   tickets: Ticket[] = [];
   allTickets: Ticket[] = []; // All tickets from API (filtered by status/agent)
   agents: Agent[] = [];
+  zones: ParkingZone[] = [];
+  zoneOccupations: ZoneOccupation[] = [];
   isLoading = true;
 
   filterStatus = '';
@@ -1215,6 +1456,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
   private statusLabels: Record<TicketStatus, string> = {
     [TicketStatus.PENDING]: 'En attente',
     [TicketStatus.PAID]: 'Payé',
+    [TicketStatus.SABOT_REMOVED]: 'Sabot retiré',
     [TicketStatus.OVERDUE]: 'En retard',
     [TicketStatus.APPEALED]: 'Contesté',
     [TicketStatus.DISMISSED]: 'Annulé',
@@ -1228,6 +1470,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit(): void {
     this.loadAgents();
     this.loadTickets();
+    this.loadZonesAndOccupation();
 
     // Debounced plate search - filter locally for instant feedback
     this.plateSearch$
@@ -1306,7 +1549,8 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.markersLayer.clearLayers();
     this.ticketMarkers.clear();
 
-    const bounds: L.LatLngBounds | null = this.tickets.length > 0 ? L.latLngBounds([]) : null;
+    const bounds: L.LatLngBounds | null =
+      this.tickets.length > 0 ? L.latLngBounds([]) : null;
 
     this.tickets.forEach((ticket) => {
       if (!ticket.position?.coordinates) return;
@@ -1390,10 +1634,16 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
         </div>
         <div style="display: grid; gap: 6px; font-size: 13px;">
           <div><strong>Plaque:</strong> ${ticket.licensePlate}</div>
-          <div><strong>Raison:</strong> ${this.getReasonLabel(ticket.reason)}</div>
+          <div><strong>Raison:</strong> ${this.getReasonLabel(
+            ticket.reason
+          )}</div>
           <div><strong>Montant:</strong> ${ticket.fineAmount} TND</div>
-          <div><strong>Statut:</strong> ${this.getStatusLabel(ticket.status)}</div>
-          <div><strong>Date:</strong> ${new Date(ticket.issuedAt).toLocaleString('fr-FR')}</div>
+          <div><strong>Statut:</strong> ${this.getStatusLabel(
+            ticket.status
+          )}</div>
+          <div><strong>Date:</strong> ${new Date(
+            ticket.issuedAt
+          ).toLocaleString('fr-FR')}</div>
         </div>
       </div>
     `;
@@ -1406,6 +1656,62 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       },
       error: (err) => console.error('Error loading agents:', err),
     });
+  }
+
+  loadZonesAndOccupation(): void {
+    // Load zones first
+    this.apiService.getParkingZones().subscribe({
+      next: ({ data: zones }) => {
+        this.zones = zones;
+        // Then load active sessions to calculate occupation
+        this.apiService
+          .getParkingSessions({
+            status: ParkingSessionStatus.ACTIVE,
+            limit: 1000,
+          })
+          .subscribe({
+            next: ({ data: sessions }) => {
+              this.calculateZoneOccupations(sessions);
+            },
+            error: (err) =>
+              console.error('Error loading sessions for occupation:', err),
+          });
+      },
+      error: (err) => console.error('Error loading zones:', err),
+    });
+  }
+
+  private calculateZoneOccupations(sessions: any[]): void {
+    if (!this.zones.length) return;
+
+    const activeSessionsByZone = new Map<string, number>();
+
+    // Count active sessions per zone
+    sessions.forEach((session) => {
+      const count = activeSessionsByZone.get(session.zoneId) || 0;
+      activeSessionsByZone.set(session.zoneId, count + 1);
+    });
+
+    // Calculate occupation for each zone
+    this.zoneOccupations = this.zones
+      .filter((zone) => zone.numberOfPlaces > 0)
+      .map((zone) => {
+        const activeSessions = activeSessionsByZone.get(zone._id) || 0;
+        const occupationRate = Math.min(
+          100,
+          Math.round((activeSessions / zone.numberOfPlaces) * 100)
+        );
+
+        return {
+          zoneId: zone._id,
+          zoneName: zone.name,
+          zoneCode: zone.code,
+          numberOfPlaces: zone.numberOfPlaces,
+          activeSessions,
+          occupationRate,
+        };
+      })
+      .sort((a, b) => b.occupationRate - a.occupationRate);
   }
 
   onPlateSearchChange(plate: LicensePlate): void {
@@ -1559,6 +1865,8 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       [TicketStatus.PENDING]:
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
       [TicketStatus.PAID]:
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      [TicketStatus.SABOT_REMOVED]:
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
       [TicketStatus.OVERDUE]:
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',

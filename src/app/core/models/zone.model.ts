@@ -8,10 +8,13 @@ export interface Zone {
   };
   hourlyRate: number;
   operatingHours: string;
+  boundaries: number[][]; // Array of [longitude, latitude] pairs
+
   prices: {
     car_sabot: number;
     pound: number;
   };
+  numberOfPlaces: number;
   description?: string;
   isActive: boolean;
   createdAt: string;
@@ -28,8 +31,10 @@ export interface CreateZoneDto {
     car_sabot: number;
     pound: number;
   };
+  numberOfPlaces?: number;
   description?: string;
   isActive?: boolean;
+  boundaries?: number[][];
 }
 
 export interface UpdateZoneDto {
@@ -42,6 +47,8 @@ export interface UpdateZoneDto {
     car_sabot: number;
     pound: number;
   };
+  numberOfPlaces?: number;
   description?: string;
   isActive?: boolean;
+  boundaries?: number[][];
 }
