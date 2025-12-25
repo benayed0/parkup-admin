@@ -70,10 +70,10 @@ export class LoginComponent {
 
   onOtpInput(event: Event, index: number): void {
     const input = event.target as HTMLInputElement;
-    const value = input.value.toUpperCase();
+    const value = input.value;
 
-    // Only allow alphanumeric
-    if (value && !/^[A-Z0-9]$/.test(value)) {
+    // Only allow numbers
+    if (value && !/^[0-9]$/.test(value)) {
       input.value = this.otpDigits[index];
       return;
     }
@@ -102,9 +102,9 @@ export class LoginComponent {
 
   onOtpPaste(event: ClipboardEvent): void {
     event.preventDefault();
-    const paste = event.clipboardData?.getData('text')?.toUpperCase() || '';
+    const paste = event.clipboardData?.getData('text') || '';
     const chars = paste
-      .replace(/[^A-Z0-9]/g, '')
+      .replace(/[^0-9]/g, '')
       .slice(0, 4)
       .split('');
 
