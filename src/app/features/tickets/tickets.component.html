@@ -1,0 +1,596 @@
+<div class="tickets-page">
+  <header class="page-header">
+    <div>
+      <h1>Tickets</h1>
+      <p>Liste des amendes de stationnement</p>
+    </div>
+  </header>
+
+  <!-- Statistics Cards -->
+  <div class="stats-grid">
+    <div class="stat-card pending">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value">{{ stats.pendingTickets }}</span>
+        <span class="stat-label">En attente</span>
+      </div>
+    </div>
+
+    <div class="stat-card today">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value">{{ stats.todayTickets }}</span>
+        <span class="stat-label">Tickets aujourd'hui</span>
+      </div>
+    </div>
+
+    <div class="stat-card revenue">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path
+            d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+          ></path>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value"
+          >{{ stats.todayFines | number : '1.2-2' }} TND</span
+        >
+        <span class="stat-label">Amendes aujourd'hui</span>
+      </div>
+    </div>
+
+    <div class="stat-card total">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+          <polyline points="17 6 23 6 23 12"></polyline>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value"
+          >{{ stats.totalFines | number : '1.2-2' }} TND</span
+        >
+        <span class="stat-label">Total amendes</span>
+      </div>
+    </div>
+
+    <div class="stat-card paid">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value">{{ stats.paidToday }}</span>
+        <span class="stat-label">Payés aujourd'hui</span>
+      </div>
+    </div>
+
+    <div class="stat-card overdue">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value">{{ stats.overdueTickets }}</span>
+        <span class="stat-label">En retard</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zone Occupation -->
+  @if (zoneOccupations.length > 0) {
+  <div class="occupation-section">
+    <h3 class="occupation-title">Occupation des zones</h3>
+    <div class="occupation-grid">
+      @for (zone of zoneOccupations; track zone.zoneId) {
+      <div
+        class="occupation-card"
+        [class.high]="zone.occupationRate >= 80"
+        [class.medium]="
+          zone.occupationRate >= 50 && zone.occupationRate < 80
+        "
+        [class.low]="zone.occupationRate < 50"
+      >
+        <div class="occupation-header">
+          <span class="zone-code">{{ zone.zoneCode }}</span>
+          <span class="zone-name">{{ zone.zoneName }}</span>
+        </div>
+        <div class="occupation-bar-container">
+          <div
+            class="occupation-bar"
+            [style.width.%]="zone.occupationRate"
+          ></div>
+        </div>
+        <div class="occupation-stats">
+          <span class="occupation-count"
+            >{{ zone.activeSessions }} / {{ zone.numberOfPlaces }}</span
+          >
+          <span
+            class="occupation-rate"
+            [class.high]="zone.occupationRate >= 80"
+            >{{ zone.occupationRate | number : '1.0-0' }}%</span
+          >
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+  }
+
+  <!-- View Tabs -->
+  <div class="view-tabs">
+    <button
+      class="tab-btn"
+      [class.active]="viewMode === 'list'"
+      (click)="setViewMode('list')"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <line x1="8" y1="6" x2="21" y2="6"></line>
+        <line x1="8" y1="12" x2="21" y2="12"></line>
+        <line x1="8" y1="18" x2="21" y2="18"></line>
+        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+      </svg>
+      Liste
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="viewMode === 'map'"
+      (click)="setViewMode('map')"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <polygon
+          points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"
+        ></polygon>
+        <line x1="8" y1="2" x2="8" y2="18"></line>
+        <line x1="16" y1="6" x2="16" y2="22"></line>
+      </svg>
+      Carte
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="filter-group">
+      <label>Statut</label>
+      <select [(ngModel)]="filterStatus" (change)="loadTickets()">
+        <option value="">Tous</option>
+        <option value="pending">En attente</option>
+        <option value="paid">Payé</option>
+        <option value="overdue">En retard</option>
+        <option value="appealed">Contesté</option>
+        <option value="dismissed">Annulé</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Agent</label>
+      <select [(ngModel)]="filterAgentId" (change)="loadTickets()">
+        <option value="">Tous les agents</option>
+        @for (agent of agents; track agent._id) {
+        <option [value]="agent._id">{{ agent.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="plate-search-box">
+      <app-license-plate-input
+        label="Rechercher par plaque"
+        [showTypeSelector]="true"
+        [compactTypeSelector]="true"
+        [showPreview]="false"
+        (plateChange)="onPlateSearchChange($event)"
+      ></app-license-plate-input>
+    </div>
+  </div>
+
+  @if (isLoading) {
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Chargement...</p>
+  </div>
+  } @else if (viewMode === 'list') {
+  <!-- Desktop Table View -->
+  <div class="table-container desktop-only">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>N° Ticket</th>
+          <th>Plaque</th>
+          <th>Raison</th>
+          <th>Montant</th>
+          <th>Agent</th>
+          <th>Date</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (ticket of tickets; track ticket._id) {
+        <tr>
+          <td class="ticket-number">
+            {{ ticket.ticketNumber }}
+            <button
+              class="id-badge"
+              title="Cliquez pour copier l'ID complet: {{ ticket._id }}"
+              (click)="copyId(ticket._id)"
+            >
+              #{{ getShortId(ticket._id) }}
+            </button>
+          </td>
+          <td class="plate">
+            <app-license-plate-display
+              [plateNumber]="ticket.licensePlate"
+              [mini]="true"
+              [scale]="0.9"
+            ></app-license-plate-display>
+          </td>
+          <td>
+            <span class="reason-badge" [attr.data-reason]="ticket.reason">
+              <span
+                class="badge-icon"
+                [innerHTML]="getReasonIcon(ticket.reason)"
+              ></span>
+              {{ getReasonLabel(ticket.reason) }}
+            </span>
+          </td>
+          <td class="amount">{{ ticket.fineAmount }} TND</td>
+          <td>{{ getAgentName(ticket.agentId) }}</td>
+          <td class="date">
+            {{ ticket.issuedAt | date : 'dd/MM/yyyy HH:mm' }}
+          </td>
+          <td>
+            <span class="status-badge" [attr.data-status]="ticket.status">
+              <span
+                class="badge-icon"
+                [innerHTML]="getStatusIcon(ticket.status)"
+              ></span>
+              {{ getStatusLabel(ticket.status) }}
+            </span>
+          </td>
+          <td>
+            <div class="actions">
+              @if (ticket.position?.coordinates) {
+              <button
+                class="btn-icon locate"
+                title="Voir sur la carte"
+                (click)="locateOnMap(ticket)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
+                  ></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+              </button>
+              } @if (ticket.status === 'pending' || ticket.status ===
+              'overdue') {
+              <button
+                class="btn-icon paid"
+                title="Marquer comme payé"
+                (click)="payTicket(ticket)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path
+                    d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+                  ></path>
+                </svg>
+              </button>
+              } @if (ticket.status === 'pending' || ticket.status ===
+              'appealed') {
+              <button
+                class="btn-icon success"
+                title="Annuler"
+                (click)="dismissTicket(ticket)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </button>
+              }
+              <button
+                class="btn-icon danger"
+                title="Supprimer"
+                (click)="deleteTicket(ticket)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="8" class="empty">Aucun ticket trouvé</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View -->
+  <div class="mobile-cards mobile-only">
+    @for (ticket of tickets; track ticket._id) {
+    <div class="mobile-card">
+      <div class="card-header">
+        <div class="card-plate">
+          <app-license-plate-display
+            [plateNumber]="ticket.licensePlate"
+            [mini]="true"
+            [scale]="0.85"
+          ></app-license-plate-display>
+        </div>
+        <span class="status-badge" [attr.data-status]="ticket.status">
+          <span
+            class="badge-icon"
+            [innerHTML]="getStatusIcon(ticket.status)"
+          ></span>
+          {{ getStatusLabel(ticket.status) }}
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="card-row">
+          <span class="card-label">N° Ticket</span>
+          <span class="card-value ticket-number">
+            {{ ticket.ticketNumber }}
+            <button
+              class="id-badge"
+              title="Cliquez pour copier l'ID complet"
+              (click)="copyId(ticket._id)"
+            >
+              #{{ getShortId(ticket._id) }}
+            </button>
+          </span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Montant</span>
+          <span class="card-value amount">{{ ticket.fineAmount }} TND</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Raison</span>
+          <span class="reason-badge" [attr.data-reason]="ticket.reason">
+            <span
+              class="badge-icon"
+              [innerHTML]="getReasonIcon(ticket.reason)"
+            ></span>
+            {{ getReasonLabel(ticket.reason) }}
+          </span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Agent</span>
+          <span class="card-value">{{ getAgentName(ticket.agentId) }}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Date</span>
+          <span class="card-value date">{{
+            ticket.issuedAt | date : 'dd/MM/yyyy HH:mm'
+          }}</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        @if (ticket.position?.coordinates) {
+        <button class="btn-action locate" (click)="locateOnMap(ticket)">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          Carte
+        </button>
+        } @if (ticket.status === 'pending' || ticket.status === 'overdue') {
+        <button class="btn-action paid" (click)="payTicket(ticket)">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="1" x2="12" y2="23"></line>
+            <path
+              d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+            ></path>
+          </svg>
+          Payé
+        </button>
+        } @if (ticket.status === 'pending' || ticket.status === 'appealed')
+        {
+        <button class="btn-action success" (click)="dismissTicket(ticket)">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          Annuler
+        </button>
+        }
+        <button class="btn-action danger" (click)="deleteTicket(ticket)">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            ></path>
+          </svg>
+          Supprimer
+        </button>
+      </div>
+    </div>
+    } @empty {
+    <div class="empty-state">
+      <p>Aucun ticket trouvé</p>
+    </div>
+    }
+  </div>
+
+  <div class="table-footer">
+    <span
+      >{{ tickets.length }} ticket(s) affiché(s) sur
+      {{ stats.totalTickets }}</span
+    >
+  </div>
+  } @else if (viewMode === 'map') {
+  <!-- Map View -->
+  <div class="map-container">
+    <div id="tickets-map"></div>
+    @if (tickets.length === 0) {
+    <div class="map-empty-overlay">
+      <p>Aucun ticket à afficher sur la carte</p>
+    </div>
+    }
+  </div>
+  <div class="table-footer">
+    <span>{{ tickets.length }} ticket(s) sur la carte</span>
+  </div>
+  }
+
+  <!-- Toast Message -->
+  @if (message) {
+  <div class="toast" [class]="message.type">
+    {{ message.text }}
+  </div>
+  }
+</div>

@@ -1,0 +1,249 @@
+<div class="operators-page">
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Gestion des Operateurs</h1>
+      <p>Gerez les operateurs et leurs permissions</p>
+    </div>
+    @if (canManageOperators) {
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Nouvel Operateur
+      </button>
+    }
+  </div>
+
+  @if (isLoading) {
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Chargement des operateurs...</p>
+    </div>
+  } @else if (error) {
+    <div class="error-state">
+      <p>{{ error }}</p>
+      <button class="btn btn-secondary" (click)="loadOperators()">Reessayer</button>
+    </div>
+  } @else {
+    <div class="operators-grid">
+      @for (operator of operators; track operator._id) {
+        <div class="operator-card" [class.inactive]="!operator.isActive">
+          <div class="operator-header">
+            <div class="operator-avatar">
+              {{ operator.name.charAt(0).toUpperCase() }}
+            </div>
+            <div class="operator-info">
+              <h3>{{ operator.name }}</h3>
+              <p>{{ operator.email }}</p>
+            </div>
+            <span class="role-badge" [attr.data-role]="operator.role">
+              {{ getRoleLabel(operator.role) }}
+            </span>
+          </div>
+
+          <div class="operator-details">
+            <div class="detail-item">
+              <span class="label">Statut</span>
+              <span class="status" [class.active]="operator.isActive" [class.inactive]="!operator.isActive">
+                {{ operator.isActive ? 'Actif' : 'Inactif' }}
+              </span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Zones</span>
+              <span class="value zones-list">
+                @if (operator.zoneIds && operator.zoneIds.length > 0) {
+                  {{ getZoneNames(operator.zoneIds) }}
+                } @else {
+                  <span class="no-zones">Aucune zone</span>
+                }
+              </span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Derniere connexion</span>
+              <span class="value">{{ operator.lastLoginAt ? formatDate(operator.lastLoginAt) : 'Jamais' }}</span>
+            </div>
+          </div>
+
+          @if (canManageOperators && operator._id !== currentOperatorId) {
+            <div class="operator-actions">
+              <button class="btn btn-sm btn-secondary" (click)="openEditModal(operator)">
+                Modifier
+              </button>
+              <button class="btn btn-sm btn-info" (click)="openZonesModal(operator)">
+                Zones
+              </button>
+              @if (operator.isActive) {
+                <button class="btn btn-sm btn-warning" (click)="toggleStatus(operator)">
+                  Desactiver
+                </button>
+              } @else {
+                <button class="btn btn-sm btn-success" (click)="toggleStatus(operator)">
+                  Activer
+                </button>
+              }
+              <button class="btn btn-sm btn-danger" (click)="confirmDelete(operator)">
+                Supprimer
+              </button>
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <p>Aucun operateur trouve</p>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Create/Edit Modal -->
+  @if (showModal) {
+    <div class="modal-overlay" (click)="closeModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>{{ editingOperator ? 'Modifier l\'Operateur' : 'Nouvel Operateur' }}</h2>
+          <button class="close-btn" (click)="closeModal()">&times;</button>
+        </div>
+        <form (ngSubmit)="saveOperator()" class="modal-body">
+          <div class="form-group">
+            <label for="name">Nom</label>
+            <input
+              type="text"
+              id="name"
+              [(ngModel)]="formData.name"
+              name="name"
+              required
+              placeholder="Nom complet"
+            />
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              [(ngModel)]="formData.email"
+              name="email"
+              required
+              placeholder="email@example.com"
+              [disabled]="!!editingOperator"
+            />
+          </div>
+          <div class="form-group">
+            <label for="role">Role</label>
+            <select id="role" [(ngModel)]="formData.role" name="role" required>
+              <option value="supervisor">Superviseur</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+              <option value="super_admin">Super Admin</option>
+            </select>
+          </div>
+
+          @if (formError) {
+            <div class="form-error">{{ formError }}</div>
+          }
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeModal()">
+              Annuler
+            </button>
+            <button type="submit" class="btn btn-primary" [disabled]="isSaving">
+              {{ isSaving ? 'Enregistrement...' : 'Enregistrer' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Zones Modal -->
+  @if (showZonesModal) {
+    <div class="modal-overlay" (click)="closeZonesModal()">
+      <div class="modal modal-lg" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Gerer les zones de {{ zonesOperator?.name }}</h2>
+          <button class="close-btn" (click)="closeZonesModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="zones-description">Selectionnez les zones auxquelles cet operateur a acces:</p>
+
+          @if (zonesLoading) {
+            <div class="zones-loading">
+              <div class="spinner-small"></div>
+              Chargement des zones...
+            </div>
+          } @else if (zones.length === 0) {
+            <div class="no-zones-available">
+              Aucune zone disponible. Creez d'abord des zones de stationnement.
+            </div>
+          } @else {
+            <div class="zones-grid">
+              @for (zone of zones; track zone._id) {
+                <label class="zone-checkbox" [class.selected]="isZoneSelected(zone._id)">
+                  <input
+                    type="checkbox"
+                    [checked]="isZoneSelected(zone._id)"
+                    (change)="toggleZone(zone._id)"
+                  />
+                  <div class="zone-info">
+                    <span class="zone-code">{{ zone.code }}</span>
+                    <span class="zone-name">{{ zone.name }}</span>
+                  </div>
+                  <div class="zone-check">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                </label>
+              }
+            </div>
+
+            <div class="zones-summary">
+              <span>{{ selectedZoneIds.length }} zone(s) selectionnee(s)</span>
+              @if (selectedZoneIds.length > 0) {
+                <button type="button" class="btn-link" (click)="clearAllZones()">Tout deselectionner</button>
+              }
+              @if (selectedZoneIds.length < zones.length) {
+                <button type="button" class="btn-link" (click)="selectAllZones()">Tout selectionner</button>
+              }
+            </div>
+          }
+
+          @if (zonesError) {
+            <div class="form-error">{{ zonesError }}</div>
+          }
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeZonesModal()">
+              Annuler
+            </button>
+            <button type="button" class="btn btn-primary" (click)="saveZones()" [disabled]="zonesSaving">
+              {{ zonesSaving ? 'Enregistrement...' : 'Enregistrer' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Delete Confirmation Modal -->
+  @if (showDeleteModal) {
+    <div class="modal-overlay" (click)="closeDeleteModal()">
+      <div class="modal modal-sm" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Confirmer la suppression</h2>
+          <button class="close-btn" (click)="closeDeleteModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Etes-vous sur de vouloir supprimer l'operateur <strong>{{ operatorToDelete?.name }}</strong> ?</p>
+          <p class="warning-text">Cette action est irreversible.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeDeleteModal()">Annuler</button>
+          <button class="btn btn-danger" (click)="deleteOperator()" [disabled]="isDeleting">
+            {{ isDeleting ? 'Suppression...' : 'Supprimer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

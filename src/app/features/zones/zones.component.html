@@ -1,0 +1,566 @@
+<div class="zones-page">
+  <!-- List View -->
+  @if (viewMode === 'list') {
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Gestion des Zones</h1>
+      <p>Gerez les zones de stationnement et leurs rues</p>
+    </div>
+    @if (canManageZones) {
+    <button class="btn btn-primary" (click)="openCreateModal()">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      Nouvelle Zone
+    </button>
+    }
+  </div>
+
+  @if (isLoading) {
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Chargement des zones...</p>
+  </div>
+  } @else if (error) {
+  <div class="error-state">
+    <p>{{ error }}</p>
+    <button class="btn btn-secondary" (click)="loadZones()">
+      Reessayer
+    </button>
+  </div>
+  } @else {
+  <div class="zones-grid">
+    @for (zone of zones; track zone._id) {
+    <div class="zone-card" [class.inactive]="!zone.isActive">
+      <div class="zone-header">
+        <div class="zone-code-badge">{{ zone.code }}</div>
+        <div class="zone-info">
+          <h3>{{ zone.name }}</h3>
+          <p class="zone-description">
+            {{ zone.description || 'Aucune description' }}
+          </p>
+        </div>
+        <span
+          class="status-badge"
+          [class.active]="zone.isActive"
+          [class.inactive]="!zone.isActive"
+        >
+          {{ zone.isActive ? 'Active' : 'Inactive' }}
+        </span>
+      </div>
+
+      <div class="zone-details">
+        <div class="detail-row">
+          <div class="detail-item">
+            <span class="label">Tarif horaire</span>
+            <span class="value">{{ zone.hourlyRate }} TND/h</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Horaires</span>
+            <span class="value">{{ zone.operatingHours }}</span>
+          </div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-item">
+            <span class="label">Sabot</span>
+            <span class="value">{{ zone.prices?.car_sabot || 0 }} TND</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Fourriere</span>
+            <span class="value">{{ zone.prices?.pound || 0 }} TND</span>
+          </div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-item">
+            <span class="label">Places</span>
+            <span class="value">{{ zone.numberOfPlaces || 0 }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Occupation</span>
+            <span class="value">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="zone-actions">
+        <button
+          class="btn btn-sm btn-info"
+          (click)="openStreetsEditor(zone)"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          Rues
+        </button>
+        @if (canManageZones) {
+        <button
+          class="btn btn-sm btn-secondary"
+          (click)="openEditModal(zone)"
+        >
+          Modifier
+        </button>
+        @if (zone.isActive) {
+        <button class="btn btn-sm btn-warning" (click)="toggleStatus(zone)">
+          Desactiver
+        </button>
+        } @else {
+        <button class="btn btn-sm btn-success" (click)="toggleStatus(zone)">
+          Activer
+        </button>
+        }
+        <button class="btn btn-sm btn-danger" (click)="confirmDelete(zone)">
+          Supprimer
+        </button>
+        }
+      </div>
+    </div>
+    } @empty {
+    <div class="empty-state">
+      <p>Aucune zone trouvee</p>
+    </div>
+    }
+  </div>
+  } }
+
+  <!-- Streets Editor View -->
+  @if (viewMode === 'streets' && selectedZone) {
+  <div class="editor-container">
+    <aside class="sidebar" [class.open]="sidebarOpen">
+      <div class="sidebar-header">
+        <button class="back-btn" (click)="closeStreetsEditor()">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Retour
+        </button>
+        <button class="close-sidebar" (click)="sidebarOpen = false">
+          &times;
+        </button>
+      </div>
+
+      <div class="zone-summary">
+        <div class="zone-code-badge large">{{ selectedZone.code }}</div>
+        <h2>{{ selectedZone.name }}</h2>
+        <p>{{ selectedZone.description || 'Aucune description' }}</p>
+      </div>
+
+      <!-- Street Type Selector -->
+      <div class="section">
+        <label>Type de rue a dessiner</label>
+        <div class="street-types">
+          @for (type of streetTypes; track type.value) {
+          <button
+            class="type-btn"
+            [class.active]="selectedStreetType === type.value"
+            [style.border-color]="type.color"
+            [style.background-color]="
+              selectedStreetType === type.value ? type.color : 'transparent'
+            "
+            (click)="selectedStreetType = type.value; onStreetTypeChange()"
+          >
+            <span
+              class="color-dot"
+              [style.background-color]="type.color"
+            ></span>
+            {{ type.label }}
+          </button>
+          }
+        </div>
+      </div>
+
+      <!-- Zone Boundary Section -->
+      <div class="section">
+        <label>Limite de zone</label>
+        <div class="boundary-controls">
+          @if (zoneBoundary) {
+            <div class="boundary-status has-boundary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              Limite definie ({{ zoneBoundary.coordinates.length }} points)
+            </div>
+            <div class="boundary-actions">
+              @if (isEditingBoundary) {
+                <button class="btn btn-sm btn-success" (click)="finishEditingBoundary()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Terminer
+                </button>
+                <button class="btn btn-sm btn-secondary" (click)="cancelEditingBoundary()">
+                  Annuler
+                </button>
+              } @else {
+                <button class="btn btn-sm btn-info" (click)="startEditingBoundary()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  Modifier
+                </button>
+                <button class="btn btn-sm btn-danger-outline" (click)="clearBoundary()">
+                  Effacer
+                </button>
+              }
+            </div>
+            @if (isEditingBoundary) {
+              <p class="hint edit-hint">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                Glissez les points pour modifier la limite
+              </p>
+            }
+          } @else {
+            <div class="boundary-status no-boundary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+              Aucune limite
+            </div>
+            <p class="hint">Utilisez l'outil polygone pour dessiner la limite</p>
+          }
+          @if (hasUnsavedBoundary()) {
+            <button
+              class="btn btn-sm btn-success full-width"
+              [disabled]="isSavingBoundary || isEditingBoundary"
+              (click)="saveBoundary()"
+            >
+              @if (isSavingBoundary) { Sauvegarde... } @else { Sauvegarder limite }
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Statistics -->
+      <div class="section stats">
+        <div class="stat">
+          <span class="stat-value">{{ getExistingStreetsCount() }}</span>
+          <span class="stat-label">Rues existantes</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ getNewStreetsCount() }}</span>
+          <span class="stat-label">Nouvelles rues</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="section actions">
+        <button
+          class="btn btn-primary"
+          [disabled]="isSaving || getNewStreetsCount() === 0"
+          (click)="saveStreets()"
+        >
+          @if (isSaving) { Sauvegarde... } @else { Sauvegarder ({{
+            getNewStreetsCount()
+          }}) }
+        </button>
+
+        <button
+          class="btn btn-secondary"
+          [disabled]="drawnStreets.length === 0"
+          (click)="clearMap()"
+        >
+          Effacer la carte
+        </button>
+
+        <button
+          class="btn btn-danger-outline"
+          [disabled]="isSaving || getExistingStreetsCount() === 0"
+          (click)="deleteAllStreets()"
+        >
+          Supprimer tout
+        </button>
+      </div>
+
+      <!-- Instructions -->
+      <div class="section instructions">
+        <h3>Instructions</h3>
+        <ol>
+          <li>Selectionnez le type de rue</li>
+          <li>Cliquez sur l'icone ligne dans la carte</li>
+          <li>Dessinez la rue point par point</li>
+          <li>Double-cliquez pour terminer</li>
+          <li>Sauvegardez vos modifications</li>
+        </ol>
+      </div>
+
+      <!-- Message -->
+      @if (mapMessage) {
+      <div class="message" [class]="mapMessage.type">
+        {{ mapMessage.text }}
+      </div>
+      }
+    </aside>
+
+    <!-- Mobile Toggle -->
+    <button
+      class="sidebar-toggle"
+      (click)="sidebarOpen = !sidebarOpen"
+      [class.open]="sidebarOpen"
+    >
+      <span class="toggle-icon"></span>
+    </button>
+
+    @if (sidebarOpen) {
+    <div class="sidebar-backdrop" (click)="sidebarOpen = false"></div>
+    }
+
+    <!-- Map -->
+    <main class="map-container">
+      <div id="streets-map"></div>
+      @if (isLoadingStreets) {
+      <div class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Chargement des rues...</p>
+      </div>
+      }
+    </main>
+  </div>
+  }
+
+  <!-- Create/Edit Zone Modal -->
+  @if (showModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ editingZone ? 'Modifier la Zone' : 'Nouvelle Zone' }}</h2>
+        <button class="close-btn" (click)="closeModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="saveZone()" class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="code">Code</label>
+            <input
+              type="text"
+              id="code"
+              [(ngModel)]="formData.code"
+              name="code"
+              required
+              placeholder="Ex: TUN01"
+              [disabled]="!!editingZone"
+            />
+          </div>
+          <div class="form-group">
+            <label for="name">Nom</label>
+            <input
+              type="text"
+              id="name"
+              [(ngModel)]="formData.name"
+              name="name"
+              required
+              placeholder="Nom de la zone"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea
+            id="description"
+            [(ngModel)]="formData.description"
+            name="description"
+            rows="2"
+            placeholder="Description optionnelle"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Emplacement</label>
+          <div class="location-picker">
+            <div id="location-picker-map" class="picker-map"></div>
+            <div class="location-info">
+              @if (formData.latitude && formData.longitude) {
+                <span class="coords">{{ formData.latitude | number:'1.4-4' }}, {{ formData.longitude | number:'1.4-4' }}</span>
+              } @else {
+                <span class="coords-placeholder">Cliquez sur la carte pour definir l'emplacement</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="hourlyRate">Tarif horaire (TND)</label>
+            <input
+              type="number"
+              id="hourlyRate"
+              [(ngModel)]="formData.hourlyRate"
+              name="hourlyRate"
+              required
+              min="0"
+              step="0.1"
+              placeholder="1.5"
+            />
+          </div>
+          <div class="form-group">
+            <label for="numberOfPlaces">Nombre de places</label>
+            <input
+              type="number"
+              id="numberOfPlaces"
+              [(ngModel)]="formData.numberOfPlaces"
+              name="numberOfPlaces"
+              min="0"
+              step="1"
+              placeholder="50"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Horaires d'exploitation</label>
+          <div class="hours-24-toggle">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [(ngModel)]="formData.is24h"
+                name="is24h"
+              />
+              <span>24h/24</span>
+            </label>
+          </div>
+          @if (!formData.is24h) {
+            <div class="time-range">
+              <div class="time-input">
+                <label for="hoursFrom">De</label>
+                <select id="hoursFrom" [(ngModel)]="formData.hoursFrom" name="hoursFrom" required>
+                  @for (hour of hourOptions; track hour) {
+                    <option [value]="hour">{{ hour }}</option>
+                  }
+                </select>
+              </div>
+              <span class="time-separator">-</span>
+              <div class="time-input">
+                <label for="hoursTo">A</label>
+                <select id="hoursTo" [(ngModel)]="formData.hoursTo" name="hoursTo" required>
+                  @for (hour of hourOptions; track hour) {
+                    <option [value]="hour">{{ hour }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="carSabot">Prix Sabot (TND)</label>
+            <input
+              type="number"
+              id="carSabot"
+              [(ngModel)]="formData.carSabot"
+              name="carSabot"
+              required
+              min="0"
+              step="1"
+              placeholder="50"
+            />
+          </div>
+          <div class="form-group">
+            <label for="pound">Prix Fourriere (TND)</label>
+            <input
+              type="number"
+              id="pound"
+              [(ngModel)]="formData.pound"
+              name="pound"
+              required
+              min="0"
+              step="1"
+              placeholder="100"
+            />
+          </div>
+        </div>
+
+        @if (formError) {
+        <div class="form-error">{{ formError }}</div>
+        }
+
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            (click)="closeModal()"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="isSavingZone"
+          >
+            {{ isSavingZone ? 'Enregistrement...' : 'Enregistrer' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- Delete Confirmation Modal -->
+  @if (showDeleteModal) {
+  <div class="modal-overlay" (click)="closeDeleteModal()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Confirmer la suppression</h2>
+        <button class="close-btn" (click)="closeDeleteModal()">
+          &times;
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Etes-vous sur de vouloir supprimer la zone
+          <strong>{{ zoneToDelete?.name }}</strong> ?
+        </p>
+        <p class="warning-text">
+          Cette action est irreversible et supprimera toutes les donnees
+          associees.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeDeleteModal()">
+          Annuler
+        </button>
+        <button
+          class="btn btn-danger"
+          (click)="deleteZone()"
+          [disabled]="isDeleting"
+        >
+          {{ isDeleting ? 'Suppression...' : 'Supprimer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+</div>

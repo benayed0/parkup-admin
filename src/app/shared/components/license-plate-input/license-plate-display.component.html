@@ -1,0 +1,33 @@
+<div
+  class="plate-display"
+  [class.mini]="mini"
+  [style.transform]="'scale(' + scale + ')'"
+  [style.--plate-color]="config.color"
+  [style.--plate-bg]="config.bgColor"
+  [class.eu-plate]="plateType === 'eu'"
+  [class.government-plate]="plateType === 'government'"
+  [class.diplomatic-plate]="isDiplomaticPlate"
+  [class.consular-plate]="isConsularPlate"
+>
+  @if (plateType === 'eu') {
+    <div class="eu-band">
+      <span class="eu-stars">&#9733;</span>
+      <span class="eu-code">EU</span>
+    </div>
+  }
+
+  <div class="plate-content">
+    @if (config.layout === 'standard') {
+      <span class="plate-left">{{ leftNumber }}</span>
+      <span class="plate-center">{{ config.centerText }}</span>
+      <span class="plate-right">{{ rightNumber }}</span>
+    } @else if (config.layout === 'single') {
+      <span class="plate-number">{{ leftNumber }}</span>
+      @if (config.centerText) {
+        <span class="plate-suffix">{{ config.centerText }}</span>
+      }
+    } @else {
+      <span class="plate-number">{{ leftNumber }}</span>
+    }
+  </div>
+</div>

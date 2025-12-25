@@ -1,0 +1,97 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-header">
+      <img src="assets/parkup-logo.png" alt="ParkUp" class="logo" />
+      <h1>Administration</h1>
+      <p>Connectez-vous pour acceder au tableau de bord</p>
+    </div>
+
+    @if (!otpSent) {
+    <!-- Email Form -->
+    <form (ngSubmit)="requestOtp()" class="login-form">
+      <div class="form-group">
+        <label for="email">Adresse email</label>
+        <input
+          type="email"
+          id="email"
+          [(ngModel)]="email"
+          name="email"
+          placeholder="admin@parkup.ma"
+          required
+          [disabled]="isLoading"
+        />
+      </div>
+
+      @if (error) {
+      <div class="error-message">{{ error }}</div>
+      }
+
+      <button
+        type="submit"
+        class="btn btn-primary"
+        [disabled]="isLoading || !email"
+      >
+        @if (isLoading) {
+        <span class="spinner-small"></span>
+        Envoi en cours... } @else { Envoyer le code par mail }
+      </button>
+    </form>
+    } @else {
+    <!-- OTP Form -->
+    <form (ngSubmit)="verifyOtp()" class="login-form">
+      <div class="otp-info">
+        <p>Un code de verification a ete envoye a</p>
+        <strong>{{ email }}</strong>
+        <button type="button" class="change-email" (click)="resetForm()">
+          Changer d'email
+        </button>
+      </div>
+
+      <div class="form-group">
+        <label>Code OTP</label>
+        <div class="otp-boxes">
+          @for (i of [0, 1, 2, 3]; track i) {
+          <input
+            type="text"
+            [id]="'otp-' + i"
+            maxlength="1"
+            [value]="otpDigits[i]"
+            (input)="onOtpInput($event, i)"
+            (keydown)="onOtpKeydown($event, i)"
+            (paste)="onOtpPaste($event)"
+            [disabled]="isLoading"
+            class="otp-box"
+            autocomplete="off"
+            inputmode="numeric"
+            pattern="[0-9]*"
+          />
+          }
+        </div>
+      </div>
+
+      @if (error) {
+      <div class="error-message">{{ error }}</div>
+      }
+
+      <button
+        type="submit"
+        class="btn btn-primary"
+        [disabled]="isLoading || otp.length !== 4"
+      >
+        @if (isLoading) {
+        <span class="spinner-small"></span>
+        Verification... } @else { Se connecter }
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-secondary"
+        (click)="requestOtp()"
+        [disabled]="isLoading"
+      >
+        Renvoyer le code
+      </button>
+    </form>
+    }
+  </div>
+</div>
