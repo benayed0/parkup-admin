@@ -1,0 +1,31 @@
+<div class="zone-selector">
+  <label>{{ label }}</label>
+
+  @if (isLoading) {
+    <div class="loading-zones">Chargement des zones...</div>
+  } @else {
+    <div class="zones-list">
+      @for (zone of zones; track zone._id) {
+        <label class="zone-checkbox">
+          <input
+            type="checkbox"
+            [checked]="isSelected(zone._id)"
+            (change)="toggleZone(zone._id)"
+          />
+          <span class="zone-info">
+            <span class="zone-name">{{ zone.name }}</span>
+            <span class="zone-code">{{ zone.code }}</span>
+          </span>
+        </label>
+      } @empty {
+        <div class="no-zones">Aucune zone disponible</div>
+      }
+    </div>
+
+    @if (selectedZoneIds.length > 0) {
+      <div class="selected-count">
+        {{ selectedZoneIds.length }} zone(s) sélectionnée(s)
+      </div>
+    }
+  }
+</div>

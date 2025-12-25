@@ -1,0 +1,676 @@
+<div class="sessions-page">
+  <header class="page-header">
+    <div>
+      <h1>Sessions de Stationnement</h1>
+      <p>Gestion des sessions de stationnement en cours et historique</p>
+    </div>
+    <button class="btn-primary" (click)="updateExpiredSessions()">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path
+          d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"
+        />
+      </svg>
+      Mettre a jour les expirees
+    </button>
+  </header>
+
+  <!-- Statistics Cards -->
+  <div class="stats-grid">
+    <div class="stat-card active">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value">{{ stats.activeSessions }}</span>
+        <span class="stat-label">Sessions actives</span>
+      </div>
+    </div>
+
+    <div class="stat-card today">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value">{{ stats.todaySessions }}</span>
+        <span class="stat-label">Sessions aujourd'hui</span>
+      </div>
+    </div>
+
+    <div class="stat-card revenue">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path
+            d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+          ></path>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value"
+          >{{ stats.todayRevenue | number : '1.2-2' }} DT</span
+        >
+        <span class="stat-label">Revenus aujourd'hui</span>
+      </div>
+    </div>
+
+    <div class="stat-card total">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+          <polyline points="17 6 23 6 23 12"></polyline>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value"
+          >{{ stats.totalRevenue | number : '1.2-2' }} DT</span
+        >
+        <span class="stat-label">Revenus total</span>
+      </div>
+    </div>
+
+    <div class="stat-card duration">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 8 14"></polyline>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value"
+          >{{ stats.avgDuration | number : '1.0-0' }} min</span
+        >
+        <span class="stat-label">Duree moyenne</span>
+      </div>
+    </div>
+
+    <div class="stat-card completed">
+      <div class="stat-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-value">{{ stats.completedToday }}</span>
+        <span class="stat-label">Terminees aujourd'hui</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zone Occupation -->
+  @if (zoneOccupations.length > 0) {
+  <div class="occupation-section">
+    <h3 class="occupation-title">Occupation des zones</h3>
+    <div class="occupation-grid">
+      @for (zone of zoneOccupations; track zone.zoneId) {
+      <div class="occupation-card" [class.high]="zone.occupationRate >= 80" [class.medium]="zone.occupationRate >= 50 && zone.occupationRate < 80" [class.low]="zone.occupationRate < 50">
+        <div class="occupation-header">
+          <span class="zone-code">{{ zone.zoneCode }}</span>
+          <span class="zone-name">{{ zone.zoneName }}</span>
+        </div>
+        <div class="occupation-bar-container">
+          <div class="occupation-bar" [style.width.%]="zone.occupationRate"></div>
+        </div>
+        <div class="occupation-stats">
+          <span class="occupation-count">{{ zone.activeSessions }} / {{ zone.numberOfPlaces }}</span>
+          <span class="occupation-rate" [class.high]="zone.occupationRate >= 80">{{ zone.occupationRate | number:'1.0-0' }}%</span>
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+  }
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="filter-group">
+      <label>Statut</label>
+      <select [(ngModel)]="filterStatus" (change)="loadSessions()">
+        <option value="">Tous</option>
+        <option value="active">Active</option>
+        <option value="completed">Terminee</option>
+        <option value="expired">Expiree</option>
+        <option value="cancelled">Annulee</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Zone</label>
+      <select [(ngModel)]="filterZoneId" (change)="loadSessions()">
+        <option value="">Toutes les zones</option>
+        @for (zone of zones; track zone._id) {
+        <option [value]="zone._id">{{ zone.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="plate-search-box">
+      <app-license-plate-input
+        label="Rechercher par plaque"
+        [showTypeSelector]="true"
+        [compactTypeSelector]="true"
+        [showPreview]="false"
+        (plateChange)="onPlateSearchChange($event)"
+      ></app-license-plate-input>
+    </div>
+  </div>
+
+  <!-- View Tabs -->
+  <div class="view-tabs">
+    <button
+      class="tab-btn"
+      [class.active]="viewMode === 'list'"
+      (click)="setViewMode('list')"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="8" y1="6" x2="21" y2="6"></line>
+        <line x1="8" y1="12" x2="21" y2="12"></line>
+        <line x1="8" y1="18" x2="21" y2="18"></line>
+        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+      </svg>
+      Liste
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="viewMode === 'map'"
+      (click)="setViewMode('map')"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+        <line x1="8" y1="2" x2="8" y2="18"></line>
+        <line x1="16" y1="6" x2="16" y2="22"></line>
+      </svg>
+      Carte
+    </button>
+  </div>
+
+  @if (isLoading) {
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Chargement...</p>
+  </div>
+  } @else if (viewMode === 'list') {
+  <!-- Desktop Table View -->
+  <div class="table-container desktop-only">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Plaque</th>
+          <th>Zone</th>
+          <th>Debut</th>
+          <th>Fin</th>
+          <th>Duree</th>
+          <th>Montant</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (session of sessions; track session._id) {
+        <tr
+          [class.active-row]="session.status === 'active'"
+          [class.expired-row]="session.status === 'expired'"
+        >
+          <td class="plate">
+            <app-license-plate-display
+              [plate]="session.plate"
+              [plateNumber]="session.licensePlate"
+              [mini]="true"
+              [scale]="0.9"
+            ></app-license-plate-display>
+          </td>
+          <td>{{ session.zoneName }}</td>
+          <td class="date">
+            {{ session.startTime | date : 'dd/MM/yyyy HH:mm' }}
+          </td>
+          <td class="date" [class.overdue]="isOverdue(session)">
+            {{ session.endTime | date : 'dd/MM/yyyy HH:mm' }}
+            @if (isOverdue(session)) {
+            <span class="overdue-badge">!</span>
+            }
+          </td>
+          <td>{{ session.durationMinutes }} min</td>
+          <td class="amount">{{ session.amount | number : '1.2-2' }} DT</td>
+          <td>
+            <span
+              class="status-badge"
+              [attr.data-status]="getEffectiveStatus(session)"
+            >
+              {{ getStatusLabel(getEffectiveStatus(session)) }}
+              @if (isOverdue(session)) {
+              <span class="overdue-indicator">(depassee)</span>
+              }
+            </span>
+          </td>
+          <td>
+            <div class="actions">
+              @if (session.location?.coordinates) {
+              <button
+                class="btn-icon locate"
+                title="Voir sur la carte"
+                (click)="locateOnMap(session)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+              </button>
+              }
+              @if (session.status === 'active') {
+              <button
+                class="btn-icon warning"
+                title="Prolonger"
+                (click)="openExtendModal(session)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </button>
+              <button
+                class="btn-icon success"
+                title="Terminer"
+                (click)="endSession(session)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </button>
+              <button
+                class="btn-icon danger"
+                title="Annuler"
+                (click)="cancelSession(session)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+              </button>
+              }
+              <button
+                class="btn-icon danger"
+                title="Supprimer"
+                (click)="deleteSession(session)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="8" class="empty">Aucune session trouvee</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View -->
+  <div class="mobile-cards mobile-only">
+    @for (session of sessions; track session._id) {
+    <div
+      class="mobile-card"
+      [class.active-card]="session.status === 'active'"
+      [class.expired-card]="session.status === 'expired'"
+    >
+      <div class="card-header">
+        <div class="card-plate">
+          <app-license-plate-display
+            [plate]="session.plate"
+            [plateNumber]="session.licensePlate"
+            [mini]="true"
+            [scale]="0.85"
+          ></app-license-plate-display>
+        </div>
+        <span
+          class="status-badge"
+          [attr.data-status]="getEffectiveStatus(session)"
+        >
+          {{ getStatusLabel(getEffectiveStatus(session)) }}
+          @if (isOverdue(session)) {
+          <span class="overdue-indicator">(depassee)</span>
+          }
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="card-row">
+          <span class="card-label">Zone</span>
+          <span class="card-value zone-name">{{ session.zoneName }}</span>
+        </div>
+        <div class="card-row highlight">
+          <span class="card-label">Montant</span>
+          <span class="card-value amount"
+            >{{ session.amount | number : '1.2-2' }} DT</span
+          >
+        </div>
+        <div class="card-row">
+          <span class="card-label">Duree</span>
+          <span class="card-value">{{ session.durationMinutes }} min</span>
+        </div>
+        <div class="card-time-row">
+          <div class="time-block">
+            <span class="time-label">Debut</span>
+            <span class="time-value">{{
+              session.startTime | date : 'dd/MM HH:mm'
+            }}</span>
+          </div>
+          <div class="time-separator">→</div>
+          <div class="time-block" [class.overdue]="isOverdue(session)">
+            <span class="time-label">Fin</span>
+            <span class="time-value">
+              {{ session.endTime | date : 'dd/MM HH:mm' }}
+              @if (isOverdue(session)) {
+              <span class="overdue-badge">!</span>
+              }
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="card-actions">
+        @if (session.location?.coordinates) {
+        <button class="btn-action locate" (click)="locateOnMap(session)">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          Carte
+        </button>
+        }
+        @if (session.status === 'active') {
+        <button
+          class="btn-action warning"
+          (click)="openExtendModal(session)"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          Prolonger
+        </button>
+        <button class="btn-action success" (click)="endSession(session)">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          Terminer
+        </button>
+        <button class="btn-action danger" (click)="cancelSession(session)">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+        </button>
+        }
+        <button class="btn-action danger" (click)="deleteSession(session)">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            ></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    } @empty {
+    <div class="empty-state">
+      <p>Aucune session trouvee</p>
+    </div>
+    }
+  </div>
+
+  <div class="table-footer">
+    <span
+      >{{ sessions.length }} session(s) affichee(s) sur
+      {{ stats.totalSessions }}</span
+    >
+  </div>
+  } @else if (viewMode === 'map') {
+  <!-- Map View -->
+  <div class="map-container">
+    <div id="sessions-map"></div>
+    @if (sessions.length === 0) {
+    <div class="map-empty-overlay">
+      <p>Aucune session à afficher sur la carte</p>
+    </div>
+    }
+  </div>
+  <div class="table-footer">
+    <span>{{ sessions.length }} session(s) sur la carte</span>
+  </div>
+  }
+
+  <!-- Extend Modal -->
+  @if (showExtendModal && selectedSession) {
+  <div class="modal-overlay" (click)="closeExtendModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Prolonger la session</h2>
+        <button class="close-btn" (click)="closeExtendModal()">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="session-info">
+          <div class="info-row">
+            <strong>Plaque:</strong>
+            <app-license-plate-display
+              [plate]="selectedSession.plate"
+              [plateNumber]="selectedSession.licensePlate"
+              [mini]="true"
+            ></app-license-plate-display>
+          </div>
+          <div class="info-row">
+            <strong>Zone:</strong> {{ selectedSession.zoneName }}
+          </div>
+          <div class="info-row">
+            <strong>Fin actuelle:</strong>
+            {{ selectedSession.endTime | date : 'dd/MM/yyyy HH:mm' }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Minutes supplementaires</label>
+          <input
+            type="number"
+            [(ngModel)]="extendMinutes"
+            min="1"
+            placeholder="30"
+          />
+        </div>
+        <div class="form-group">
+          <label>Montant supplementaire (DT)</label>
+          <input
+            type="number"
+            [(ngModel)]="extendAmount"
+            min="0"
+            step="0.1"
+            placeholder="0.50"
+          />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeExtendModal()">
+          Annuler
+        </button>
+        <button
+          class="btn-primary"
+          (click)="extendSession()"
+          [disabled]="!extendMinutes || extendMinutes < 1"
+        >
+          Prolonger
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Toast Message -->
+  @if (message) {
+  <div class="toast" [class]="message.type">
+    {{ message.text }}
+  </div>
+  }
+</div>

@@ -1,0 +1,456 @@
+<div class="wallets-page">
+  <header class="page-header">
+    <div>
+      <h1>Portefeuilles</h1>
+      <p>Gestion des portefeuilles utilisateurs</p>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button
+      class="tab"
+      [class.active]="activeTab === 'wallets'"
+      (click)="activeTab = 'wallets'; loadWallets()"
+    >
+      Portefeuilles
+    </button>
+    <button
+      class="tab"
+      [class.active]="activeTab === 'transactions'"
+      (click)="activeTab = 'transactions'; loadTransactions()"
+    >
+      Transactions
+    </button>
+  </div>
+
+  <!-- Wallets Tab -->
+  @if (activeTab === 'wallets') { @if (isLoading) {
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Chargement...</p>
+  </div>
+  } @else {
+  <!-- Desktop Table View -->
+  <div class="table-container desktop-only">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Utilisateur</th>
+          <th>Telephone</th>
+          <th>Solde</th>
+          <th>Devise</th>
+          <th>Derniere mise a jour</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (wallet of wallets; track wallet._id) {
+        <tr>
+          <td>
+            @if (wallet.userId?.email) {
+            {{ wallet.userId.email }}
+            } @else {
+            <span class="text-muted">Non renseigne</span>
+            }
+          </td>
+          <td class="phone">{{ wallet.userId?.phone || 'N/A' }}</td>
+          <td
+            class="balance"
+            [class.positive]="wallet.balance > 0"
+            [class.zero]="wallet.balance === 0"
+          >
+            {{ wallet.balance | number : '1.2-2' }} {{ wallet.currency }}
+          </td>
+          <td>{{ wallet.currency }}</td>
+          <td class="date">
+            {{ wallet.updatedAt | date : 'dd/MM/yyyy HH:mm' }}
+          </td>
+          <td class="actions">
+            <button
+              class="btn-icon"
+              title="Voir transactions"
+              (click)="viewUserTransactions(wallet)"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                ></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+            <button
+              class="btn-icon success"
+              title="Crediter"
+              (click)="openCreditModal(wallet)"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="6" class="empty">Aucun portefeuille trouve</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View for Wallets -->
+  <div class="mobile-cards mobile-only">
+    @for (wallet of wallets; track wallet._id) {
+    <div class="mobile-card">
+      <div class="card-header">
+        <div class="wallet-info">
+          <span class="wallet-phone">{{ wallet.userId?.phone || 'N/A' }}</span>
+          @if (wallet.userId?.email) {
+          <span class="wallet-email">{{ wallet.userId.email }}</span>
+          }
+        </div>
+        <div class="wallet-balance" [class.positive]="wallet.balance > 0" [class.zero]="wallet.balance === 0">
+          {{ wallet.balance | number : '1.2-2' }} {{ wallet.currency }}
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-row">
+          <span class="card-label">Derniere mise a jour</span>
+          <span class="card-value date">{{ wallet.updatedAt | date : 'dd/MM/yyyy HH:mm' }}</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="btn-action primary" (click)="viewUserTransactions(wallet)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          Transactions
+        </button>
+        <button class="btn-action success" (click)="openCreditModal(wallet)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Crediter
+        </button>
+      </div>
+    </div>
+    } @empty {
+    <div class="empty-state">
+      <p>Aucun portefeuille trouve</p>
+    </div>
+    }
+  </div>
+
+  <div class="table-footer">
+    <span
+      >{{ wallets.length }} portefeuille(s) affiche(s) sur
+      {{ totalWallets }}</span
+    >
+  </div>
+  } }
+
+  <!-- Transactions Tab -->
+  @if (activeTab === 'transactions') {
+  <!-- Filters -->
+  <div class="filters">
+    <div class="filter-group">
+      <label>Type</label>
+      <select [(ngModel)]="filterType" (change)="loadTransactions()">
+        <option value="">Tous</option>
+        <option value="CREDIT">Credit</option>
+        <option value="DEBIT">Debit</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Raison</label>
+      <select [(ngModel)]="filterReason" (change)="loadTransactions()">
+        <option value="">Toutes</option>
+        <option value="TOPUP">Recharge</option>
+        <option value="PARKING_PAYMENT">Paiement parking</option>
+        <option value="REFUND">Remboursement</option>
+        <option value="ADJUSTMENT">Ajustement</option>
+      </select>
+    </div>
+  </div>
+
+  @if (isLoading) {
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Chargement...</p>
+  </div>
+  } @else {
+  <!-- Desktop Table View -->
+  <div class="table-container desktop-only">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Utilisateur</th>
+          <th>Type</th>
+          <th>Montant</th>
+          <th>Raison</th>
+          <th>Solde apres</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (tx of transactions; track tx._id) {
+        <tr>
+          <td>
+            @if (tx.userId?.firstName || tx.userId?.lastName) {
+            {{ tx.userId.firstName }} {{ tx.userId.lastName }}
+            } @else {
+            {{ tx.userId?.phone || 'N/A' }}
+            }
+          </td>
+          <td>
+            <span class="type-badge" [attr.data-type]="tx.type">
+              {{ getTypeLabel(tx.type) }}
+            </span>
+          </td>
+          <td
+            class="amount"
+            [class.credit]="tx.type === 'CREDIT'"
+            [class.debit]="tx.type === 'DEBIT'"
+          >
+            {{ tx.type === 'CREDIT' ? '+' : ''
+            }}{{ tx.amount | number : '1.2-2' }} TND
+          </td>
+          <td>
+            <span class="reason-badge" [attr.data-reason]="tx.reason">
+              {{ getReasonLabel(tx.reason) }}
+            </span>
+          </td>
+          <td class="balance-after">
+            {{ tx.balanceAfter | number : '1.2-2' }} TND
+          </td>
+          <td class="date">
+            {{ tx.createdAt | date : 'dd/MM/yyyy HH:mm' }}
+          </td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="6" class="empty">Aucune transaction trouvee</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card View for Transactions -->
+  <div class="mobile-cards mobile-only">
+    @for (tx of transactions; track tx._id) {
+    <div class="mobile-card transaction-card" [class.credit-card]="tx.type === 'CREDIT'" [class.debit-card]="tx.type === 'DEBIT'">
+      <div class="card-header">
+        <div class="tx-user">
+          @if (tx.userId?.firstName || tx.userId?.lastName) {
+          {{ tx.userId.firstName }} {{ tx.userId.lastName }}
+          } @else {
+          {{ tx.userId?.phone || 'N/A' }}
+          }
+        </div>
+        <span class="type-badge" [attr.data-type]="tx.type">
+          {{ getTypeLabel(tx.type) }}
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="tx-amount-row">
+          <span class="tx-amount" [class.credit]="tx.type === 'CREDIT'" [class.debit]="tx.type === 'DEBIT'">
+            {{ tx.type === 'CREDIT' ? '+' : '-' }}{{ tx.amount | number : '1.2-2' }} TND
+          </span>
+          <span class="reason-badge" [attr.data-reason]="tx.reason">
+            {{ getReasonLabel(tx.reason) }}
+          </span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Solde apres</span>
+          <span class="card-value">{{ tx.balanceAfter | number : '1.2-2' }} TND</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Date</span>
+          <span class="card-value date">{{ tx.createdAt | date : 'dd/MM/yyyy HH:mm' }}</span>
+        </div>
+      </div>
+    </div>
+    } @empty {
+    <div class="empty-state">
+      <p>Aucune transaction trouvee</p>
+    </div>
+    }
+  </div>
+
+  <div class="table-footer">
+    <span
+      >{{ transactions.length }} transaction(s) affichee(s) sur
+      {{ totalTransactions }}</span
+    >
+  </div>
+  } }
+
+  <!-- Credit Modal -->
+  @if (showCreditModal && selectedWallet) {
+  <div class="modal-overlay" (click)="closeCreditModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Crediter le portefeuille</h2>
+        <button class="close-btn" (click)="closeCreditModal()">
+          &times;
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="user-info">
+          Utilisateur:
+          <strong>{{ selectedWallet.userId?.phone }}</strong> @if
+          (selectedWallet.userId?.firstName ||
+          selectedWallet.userId?.lastName) { ({{
+            selectedWallet.userId.firstName
+          }}
+          {{ selectedWallet.userId.lastName }}) }
+        </p>
+        <p class="current-balance">
+          Solde actuel:
+          <strong
+            >{{ selectedWallet.balance | number : '1.2-2' }}
+            {{ selectedWallet.currency }}</strong
+          >
+        </p>
+        <div class="form-group">
+          <label for="amount">Montant a crediter</label>
+          <input
+            type="number"
+            id="amount"
+            [(ngModel)]="creditAmount"
+            min="0.01"
+            step="0.01"
+            placeholder="0.00"
+          />
+        </div>
+        <div class="form-group">
+          <label for="reason">Raison</label>
+          <select id="reason" [(ngModel)]="creditReason">
+            <option value="ADJUSTMENT">Ajustement</option>
+            <option value="REFUND">Remboursement</option>
+            <option value="TOPUP">Recharge</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeCreditModal()">
+          Annuler
+        </button>
+        <button
+          class="btn btn-primary"
+          [disabled]="!creditAmount || creditAmount <= 0"
+          (click)="creditWallet()"
+        >
+          Crediter
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- User Transactions Modal -->
+  @if (showUserTransactionsModal && selectedWallet) {
+  <div class="modal-overlay" (click)="closeUserTransactionsModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Transactions de {{ selectedWallet.userId?.phone }}</h2>
+        <button class="close-btn" (click)="closeUserTransactionsModal()">
+          &times;
+        </button>
+      </div>
+      <div class="modal-body">
+        @if (isLoadingUserTransactions) {
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Chargement...</p>
+        </div>
+        } @else {
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Montant</th>
+                <th>Raison</th>
+                <th>Solde apres</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (tx of userTransactions; track tx._id) {
+              <tr>
+                <td>
+                  <span class="type-badge" [attr.data-type]="tx.type">
+                    {{ getTypeLabel(tx.type) }}
+                  </span>
+                </td>
+                <td
+                  class="amount"
+                  [class.credit]="tx.type === 'CREDIT'"
+                  [class.debit]="tx.type === 'DEBIT'"
+                >
+                  {{ tx.type === 'CREDIT' ? '+' : ''
+                  }}{{ tx.amount | number : '1.2-2' }} TND
+                </td>
+                <td>
+                  <span class="reason-badge" [attr.data-reason]="tx.reason">
+                    {{ getReasonLabel(tx.reason) }}
+                  </span>
+                </td>
+                <td class="balance-after">
+                  {{ tx.balanceAfter | number : '1.2-2' }} TND
+                </td>
+                <td class="date">
+                  {{ tx.createdAt | date : 'dd/MM/yyyy HH:mm' }}
+                </td>
+              </tr>
+              } @empty {
+              <tr>
+                <td colspan="5" class="empty">Aucune transaction</td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button
+          class="btn btn-secondary"
+          (click)="closeUserTransactionsModal()"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Toast Message -->
+  @if (message) {
+  <div class="toast" [class]="message.type">
+    {{ message.text }}
+  </div>
+  }
+</div>

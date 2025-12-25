@@ -1,0 +1,101 @@
+<div class="license-plate-input">
+  @if (label) {
+    <label class="input-label">{{ label }}</label>
+  }
+
+  <!-- Type Selector -->
+  @if (showTypeSelector) {
+    <div class="type-selector" [class.compact]="compactTypeSelector">
+      @for (config of plateTypes; track config.type) {
+        <button
+          type="button"
+          class="type-btn"
+          [class.active]="selectedType === config.type"
+          [style.--plate-color]="config.color"
+          [style.--plate-bg]="config.bgColor"
+          (click)="selectType(config.type)"
+          [title]="config.label"
+        >
+          <span class="type-label">{{ config.shortLabel }}</span>
+        </button>
+      }
+    </div>
+  }
+
+  <!-- Plate Input Preview -->
+  <div
+    class="plate-container"
+    [style.--plate-color]="currentConfig.color"
+    [style.--plate-bg]="currentConfig.bgColor"
+    [class.eu-plate]="selectedType === 'eu'"
+    [class.government-plate]="selectedType === 'government'"
+    [class.diplomatic-plate]="isDiplomaticPlate"
+    [class.consular-plate]="isConsularPlate"
+  >
+    @if (selectedType === 'eu') {
+      <div class="eu-band">
+        <span class="eu-stars">&#9733;</span>
+        <span class="eu-code">EU</span>
+      </div>
+    }
+
+    <div class="plate-inputs" [class.single-input]="currentConfig.layout === 'single' || currentConfig.layout === 'alphanumeric'">
+      @if (currentConfig.layout === 'standard') {
+        <input
+          type="text"
+          class="plate-input left"
+          [placeholder]="leftPlaceholder"
+          [(ngModel)]="leftValue"
+          (ngModelChange)="onInputChange()"
+          [maxlength]="4"
+          inputmode="numeric"
+          pattern="[0-9]*"
+        />
+        <div class="plate-center">
+          {{ currentConfig.centerText }}
+        </div>
+        <input
+          type="text"
+          class="plate-input right"
+          [placeholder]="rightPlaceholder"
+          [(ngModel)]="rightValue"
+          (ngModelChange)="onInputChange()"
+          [maxlength]="4"
+          inputmode="numeric"
+          pattern="[0-9]*"
+        />
+      } @else if (currentConfig.layout === 'single') {
+        <input
+          type="text"
+          class="plate-input full"
+          [placeholder]="singlePlaceholder"
+          [(ngModel)]="leftValue"
+          (ngModelChange)="onInputChange()"
+          [maxlength]="8"
+          inputmode="numeric"
+          pattern="[0-9]*"
+        />
+        @if (currentConfig.centerText) {
+          <div class="plate-suffix">{{ currentConfig.centerText }}</div>
+        }
+      } @else {
+        <input
+          type="text"
+          class="plate-input alphanumeric"
+          placeholder="ABC 123"
+          [(ngModel)]="leftValue"
+          (ngModelChange)="onInputChange()"
+          [maxlength]="12"
+        />
+      }
+    </div>
+  </div>
+
+  <!-- Formatted Output Preview -->
+  @if (showPreview && formattedPlate) {
+    <div class="plate-preview">
+      <span class="preview-label">Apercu:</span>
+      <span class="preview-value">{{ formattedPlate }}</span>
+    </div>
+  }
+</div>
