@@ -422,6 +422,28 @@
   font-size: 0.813rem;
 }
 
+.id-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: var(--app-surface-variant);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.688rem;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+
+.id-badge:hover {
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
+  color: white;
+}
+
 .plate {
   min-width: 140px;
 }
@@ -691,6 +713,13 @@
   .card-value.ticket-number {
     font-family: monospace;
     color: var(--color-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .card-value.ticket-number .id-badge {
+    margin-left: 0;
   }
 
   .card-value.amount {

@@ -599,4 +599,16 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       this.message = null;
     }, 3000);
   }
+
+  getShortId(id: string): string {
+    return id.slice(-6).toUpperCase();
+  }
+
+  copyId(id: string): void {
+    navigator.clipboard.writeText(id).then(() => {
+      this.showMessage('success', 'ID copié dans le presse-papiers');
+    }).catch(() => {
+      this.showMessage('error', 'Erreur lors de la copie');
+    });
+  }
 }

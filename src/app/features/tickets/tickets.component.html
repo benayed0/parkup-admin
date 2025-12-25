@@ -290,7 +290,16 @@
       <tbody>
         @for (ticket of tickets; track ticket._id) {
         <tr>
-          <td class="ticket-number">{{ ticket.ticketNumber }}</td>
+          <td class="ticket-number">
+            {{ ticket.ticketNumber }}
+            <button
+              class="id-badge"
+              title="Cliquez pour copier l'ID complet: {{ ticket._id }}"
+              (click)="copyId(ticket._id)"
+            >
+              #{{ getShortId(ticket._id) }}
+            </button>
+          </td>
           <td class="plate">
             <app-license-plate-display
               [plateNumber]="ticket.licensePlate"
@@ -442,9 +451,16 @@
       <div class="card-body">
         <div class="card-row">
           <span class="card-label">N° Ticket</span>
-          <span class="card-value ticket-number">{{
-            ticket.ticketNumber
-          }}</span>
+          <span class="card-value ticket-number">
+            {{ ticket.ticketNumber }}
+            <button
+              class="id-badge"
+              title="Cliquez pour copier l'ID complet"
+              (click)="copyId(ticket._id)"
+            >
+              #{{ getShortId(ticket._id) }}
+            </button>
+          </span>
         </div>
         <div class="card-row">
           <span class="card-label">Montant</span>
