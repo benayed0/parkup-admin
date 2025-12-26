@@ -248,6 +248,26 @@ export class ApiService {
     return this.http.delete<void>(`${this.apiUrl}/tickets/${id}`);
   }
 
+  generateTicketToken(id: string): Observable<{
+    success: boolean;
+    data: {
+      token: string;
+      qrCodeDataUrl: string;
+      qrCodeContent: string;
+      expiresAt: string;
+    };
+  }> {
+    return this.http.post<{
+      success: boolean;
+      data: {
+        token: string;
+        qrCodeDataUrl: string;
+        qrCodeContent: string;
+        expiresAt: string;
+      };
+    }>(`${this.apiUrl}/tickets/${id}/token`, {});
+  }
+
   // ==================== WALLETS ====================
 
   getWallets(params?: {

@@ -69,6 +69,11 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
   private pendingLocateTicketId: string | null = null;
 
   message: { type: 'success' | 'error'; text: string } | null = null;
+  qrModal: { visible: boolean; dataUrl: string; ticketNumber: string } = {
+    visible: false,
+    dataUrl: '',
+    ticketNumber: '',
+  };
 
   stats: TicketStats = {
     totalTickets: 0,
@@ -591,6 +596,33 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
         this.showMessage('error', 'Erreur lors de la suppression');
       },
     });
+  }
+
+  generateQrCode(ticket: Ticket): void {
+    this.apiService.generateTicketToken(ticket._id).subscribe({
+      next: ({ data }) => {
+        this.qrModal = {
+          visible: true,
+          dataUrl: data.qrCodeDataUrl,
+          ticketNumber: ticket.ticketNumber,
+        };
+      },
+      error: (err) => {
+        console.error('Error generating QR:', err);
+        this.showMessage('error', 'Erreur lors de la génération du QR');
+      },
+    });
+  }
+
+  closeQrModal(): void {
+    this.qrModal = { visible: false, dataUrl: '', ticketNumber: '' };
+  }
+
+  downloadQrCode(): void {
+    const link = document.createElement('a');
+    link.href = this.qrModal.dataUrl;
+    link.download = `ticket-${this.qrModal.ticketNumber}-qr.png`;
+    link.click();
   }
 
   private showMessage(type: 'success' | 'error', text: string): void {

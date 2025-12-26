@@ -568,6 +568,11 @@
   color: #8b5cf6;
 }
 
+.btn-icon.qr:hover {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
 .empty {
   text-align: center;
   color: var(--app-text-secondary);
@@ -798,6 +803,16 @@
     background: rgba(139, 92, 246, 0.2);
   }
 
+  .btn-action.qr {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+
+  .btn-action.qr:hover {
+    background: rgba(16, 185, 129, 0.2);
+  }
+
   .empty-state {
     text-align: center;
     padding: 40px var(--spacing-md);
@@ -806,4 +821,135 @@
     border: 1px solid var(--app-border);
     border-radius: var(--radius-md);
   }
+}
+
+/* QR Code Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: var(--app-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.qr-modal {
+  width: 360px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--app-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--app-text-secondary);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: var(--app-hover);
+  color: var(--app-text-primary);
+}
+
+.modal-body {
+  padding: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-image {
+  width: 280px;
+  height: 280px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--app-border);
+}
+
+.modal-footer {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--app-border);
+  background: var(--app-background);
+}
+
+.btn-secondary {
+  padding: 10px 20px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text-primary);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--app-hover);
+}
+
+.btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  background: var(--color-primary);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-dark, #1a4a7a);
 }
