@@ -141,6 +141,8 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       code: '',
       name: '',
       description: '',
+      address: '',
+      phoneNumber: '',
       latitude: null as number | null,
       longitude: null as number | null,
       hourlyRate: null as number | null,
@@ -191,6 +193,8 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       code: zone.code,
       name: zone.name,
       description: zone.description || '',
+      address: zone.address || '',
+      phoneNumber: zone.phoneNumber || '',
       latitude: zone.location.coordinates[1],
       longitude: zone.location.coordinates[0],
       hourlyRate: zone.hourlyRate,
@@ -278,6 +282,8 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       numberOfPlaces: this.formData.numberOfPlaces || 0,
       description: this.formData.description || undefined,
+      address: this.formData.address || undefined,
+      phoneNumber: this.formData.phoneNumber || undefined,
     };
 
     const request = this.editingZone

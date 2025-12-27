@@ -169,6 +169,22 @@
   color: var(--app-text-secondary);
 }
 
+.zone-address,
+.zone-phone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: var(--app-text-secondary);
+}
+
+.zone-address svg,
+.zone-phone svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
 .status-badge {
   padding: 4px 10px;
   border-radius: var(--radius-sm);

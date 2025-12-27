@@ -16,6 +16,8 @@ export interface Zone {
   };
   numberOfPlaces: number;
   description?: string;
+  address?: string;
+  phoneNumber?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -33,6 +35,8 @@ export interface CreateZoneDto {
   };
   numberOfPlaces?: number;
   description?: string;
+  address?: string;
+  phoneNumber?: string;
   isActive?: boolean;
   boundaries?: number[][];
 }
@@ -49,6 +53,8 @@ export interface UpdateZoneDto {
   };
   numberOfPlaces?: number;
   description?: string;
+  address?: string;
+  phoneNumber?: string;
   isActive?: boolean;
   boundaries?: number[][];
 }
