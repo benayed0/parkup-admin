@@ -791,6 +791,155 @@
   accent-color: var(--color-secondary);
 }
 
+/* ========== Seasonal Hours Styles ========== */
+.hours-mode-toggle {
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--app-border);
+}
+
+.simple-hours-section {
+  margin-top: var(--spacing-sm);
+}
+
+.seasonal-hours-section {
+  margin-top: var(--spacing-sm);
+}
+
+.seasonal-periods {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.seasonal-period-card {
+  background: var(--app-surface-variant);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.period-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.period-name-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--app-text-primary);
+}
+
+.period-name-input:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.btn-remove-period {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-remove-period:hover {
+  background: var(--color-error);
+  color: white;
+}
+
+.period-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.date-label {
+  font-size: 0.813rem;
+  color: var(--app-text-secondary);
+  min-width: 24px;
+}
+
+.date-range select {
+  padding: 6px 10px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.813rem;
+  color: var(--app-text-primary);
+  cursor: pointer;
+}
+
+.date-range select:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+}
+
+.period-hours {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.period-hours .time-range {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.period-hours .time-range select {
+  padding: 6px 10px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.813rem;
+  color: var(--app-text-primary);
+  cursor: pointer;
+}
+
+.period-hours .time-range span {
+  color: var(--app-text-secondary);
+}
+
+.btn-add-period {
+  align-self: flex-start;
+}
+
+.default-hours-section {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px dashed var(--app-border);
+}
+
+.default-hours-section .hint {
+  margin-bottom: var(--spacing-sm);
+}
+
 .form-error {
   padding: 10px var(--spacing-md);
   background: rgba(239, 68, 68, 0.1);

@@ -480,34 +480,180 @@
 
         <div class="form-group">
           <label>Horaires d'exploitation</label>
-          <div class="hours-24-toggle">
+
+          <!-- Toggle for seasonal mode -->
+          <div class="hours-mode-toggle">
             <label class="checkbox-label">
               <input
                 type="checkbox"
-                [(ngModel)]="formData.is24h"
-                name="is24h"
+                [(ngModel)]="formData.useSeasonalHours"
+                name="useSeasonalHours"
               />
-              <span>24h/24</span>
+              <span>Utiliser des horaires saisonniers</span>
             </label>
           </div>
-          @if (!formData.is24h) {
-            <div class="time-range">
-              <div class="time-input">
-                <label for="hoursFrom">De</label>
-                <select id="hoursFrom" [(ngModel)]="formData.hoursFrom" name="hoursFrom" required>
-                  @for (hour of hourOptions; track hour) {
-                    <option [value]="hour">{{ hour }}</option>
-                  }
-                </select>
+
+          <!-- Simple hours (default mode) -->
+          @if (!formData.useSeasonalHours) {
+            <div class="simple-hours-section">
+              <div class="hours-24-toggle">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="formData.is24h"
+                    name="is24h"
+                  />
+                  <span>24h/24</span>
+                </label>
               </div>
-              <span class="time-separator">-</span>
-              <div class="time-input">
-                <label for="hoursTo">A</label>
-                <select id="hoursTo" [(ngModel)]="formData.hoursTo" name="hoursTo" required>
-                  @for (hour of hourOptions; track hour) {
-                    <option [value]="hour">{{ hour }}</option>
-                  }
-                </select>
+              @if (!formData.is24h) {
+                <div class="time-range">
+                  <div class="time-input">
+                    <label for="hoursFrom">De</label>
+                    <select id="hoursFrom" [(ngModel)]="formData.hoursFrom" name="hoursFrom" required>
+                      @for (hour of hourOptions; track hour) {
+                        <option [value]="hour">{{ hour }}</option>
+                      }
+                    </select>
+                  </div>
+                  <span class="time-separator">-</span>
+                  <div class="time-input">
+                    <label for="hoursTo">A</label>
+                    <select id="hoursTo" [(ngModel)]="formData.hoursTo" name="hoursTo" required>
+                      @for (hour of hourOptions; track hour) {
+                        <option [value]="hour">{{ hour }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Seasonal hours mode -->
+          @if (formData.useSeasonalHours) {
+            <div class="seasonal-hours-section">
+              <!-- Seasonal periods list -->
+              <div class="seasonal-periods">
+                @for (period of formData.seasonalPeriods; track $index) {
+                  <div class="seasonal-period-card">
+                    <div class="period-header">
+                      <input
+                        type="text"
+                        [(ngModel)]="period.name"
+                        [name]="'periodName' + $index"
+                        placeholder="Nom (ex: Ete, Hiver)"
+                        class="period-name-input"
+                      />
+                      <button
+                        type="button"
+                        class="btn-remove-period"
+                        (click)="removeSeasonalPeriod($index)"
+                      >
+                        &times;
+                      </button>
+                    </div>
+
+                    <div class="period-dates">
+                      <div class="date-range">
+                        <span class="date-label">Du</span>
+                        <select [(ngModel)]="period.startDay" [name]="'startDay' + $index">
+                          @for (day of days; track day) {
+                            <option [value]="day">{{ day }}</option>
+                          }
+                        </select>
+                        <select [(ngModel)]="period.startMonth" [name]="'startMonth' + $index">
+                          @for (month of months; track month.value) {
+                            <option [value]="month.value">{{ month.label }}</option>
+                          }
+                        </select>
+                      </div>
+                      <div class="date-range">
+                        <span class="date-label">au</span>
+                        <select [(ngModel)]="period.endDay" [name]="'endDay' + $index">
+                          @for (day of days; track day) {
+                            <option [value]="day">{{ day }}</option>
+                          }
+                        </select>
+                        <select [(ngModel)]="period.endMonth" [name]="'endMonth' + $index">
+                          @for (month of months; track month.value) {
+                            <option [value]="month.value">{{ month.label }}</option>
+                          }
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="period-hours">
+                      <label class="checkbox-label">
+                        <input
+                          type="checkbox"
+                          [(ngModel)]="period.is24h"
+                          [name]="'periodIs24h' + $index"
+                        />
+                        <span>24h/24</span>
+                      </label>
+                      @if (!period.is24h) {
+                        <div class="time-range">
+                          <select [(ngModel)]="period.hoursFrom" [name]="'periodHoursFrom' + $index">
+                            @for (hour of hourOptions; track hour) {
+                              <option [value]="hour">{{ hour }}</option>
+                            }
+                          </select>
+                          <span>-</span>
+                          <select [(ngModel)]="period.hoursTo" [name]="'periodHoursTo' + $index">
+                            @for (hour of hourOptions; track hour) {
+                              <option [value]="hour">{{ hour }}</option>
+                            }
+                          </select>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm btn-add-period"
+                (click)="addSeasonalPeriod()"
+              >
+                + Ajouter une periode
+              </button>
+
+              <!-- Default/fallback hours -->
+              <div class="default-hours-section">
+                <p class="hint">Horaires par defaut (quand aucune periode ne correspond) :</p>
+                <div class="hours-24-toggle">
+                  <label class="checkbox-label">
+                    <input
+                      type="checkbox"
+                      [(ngModel)]="formData.is24h"
+                      name="is24hDefault"
+                    />
+                    <span>24h/24</span>
+                  </label>
+                </div>
+                @if (!formData.is24h) {
+                  <div class="time-range">
+                    <div class="time-input">
+                      <label>De</label>
+                      <select [(ngModel)]="formData.hoursFrom" name="hoursFromDefault">
+                        @for (hour of hourOptions; track hour) {
+                          <option [value]="hour">{{ hour }}</option>
+                        }
+                      </select>
+                    </div>
+                    <span class="time-separator">-</span>
+                    <div class="time-input">
+                      <label>A</label>
+                      <select [(ngModel)]="formData.hoursTo" name="hoursToDefault">
+                        @for (hour of hourOptions; track hour) {
+                          <option [value]="hour">{{ hour }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                }
               </div>
             </div>
           }

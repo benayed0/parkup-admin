@@ -21,7 +21,7 @@ L.Marker.prototype.options.icon = L.icon({
 import { ZonesService } from '../../core/services/zones.service';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Zone, CreateZoneDto } from '../../core/models/zone.model';
+import { Zone, CreateZoneDto, SeasonalPeriod } from '../../core/models/zone.model';
 import {
   Street,
   StreetType,
@@ -113,6 +113,23 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
     `${i.toString().padStart(2, '0')}:00`
   );
 
+  readonly months = [
+    { value: 1, label: 'Janvier' },
+    { value: 2, label: 'Fevrier' },
+    { value: 3, label: 'Mars' },
+    { value: 4, label: 'Avril' },
+    { value: 5, label: 'Mai' },
+    { value: 6, label: 'Juin' },
+    { value: 7, label: 'Juillet' },
+    { value: 8, label: 'Aout' },
+    { value: 9, label: 'Septembre' },
+    { value: 10, label: 'Octobre' },
+    { value: 11, label: 'Novembre' },
+    { value: 12, label: 'Decembre' },
+  ];
+
+  readonly days: number[] = Array.from({ length: 31 }, (_, i) => i + 1);
+
   constructor(
     private zonesService: ZonesService,
     private apiService: ApiService,
@@ -149,10 +166,29 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       is24h: false,
       hoursFrom: '08:00',
       hoursTo: '20:00',
+      useSeasonalHours: false,
+      seasonalPeriods: [] as SeasonalPeriod[],
       carSabot: null as number | null,
       pound: null as number | null,
       numberOfPlaces: null as number | null,
     };
+  }
+
+  addSeasonalPeriod(): void {
+    this.formData.seasonalPeriods.push({
+      name: '',
+      startMonth: 1,
+      startDay: 1,
+      endMonth: 12,
+      endDay: 31,
+      is24h: false,
+      hoursFrom: '08:00',
+      hoursTo: '20:00',
+    });
+  }
+
+  removeSeasonalPeriod(index: number): void {
+    this.formData.seasonalPeriods.splice(index, 1);
   }
 
   // ==================== ZONES LIST ====================
@@ -185,7 +221,11 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
   openEditModal(zone: Zone): void {
     this.editingZone = zone;
 
-    // Check if 24h
+    // Check if using seasonal hours
+    const useSeasonalHours =
+      zone.seasonalOperatingHours && zone.seasonalOperatingHours.length > 0;
+
+    // Check if 24h (for default hours)
     const is24h = this.is24hOperation(zone.operatingHours);
     const [hoursFrom, hoursTo] = this.parseOperatingHours(zone.operatingHours);
 
@@ -201,6 +241,10 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       is24h,
       hoursFrom,
       hoursTo,
+      useSeasonalHours: useSeasonalHours || false,
+      seasonalPeriods: zone.seasonalOperatingHours
+        ? [...zone.seasonalOperatingHours]
+        : [],
       carSabot: zone.prices?.car_sabot || 0,
       pound: zone.prices?.pound || 0,
       numberOfPlaces: zone.numberOfPlaces || 0,
@@ -258,9 +302,28 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // Validate default hours (always needed as fallback)
     if (!this.formData.is24h && (!this.formData.hoursFrom || !this.formData.hoursTo)) {
-      this.formError = 'Veuillez specifier les horaires';
+      this.formError = 'Veuillez specifier les horaires par defaut';
       return;
+    }
+
+    // Validate seasonal periods if enabled
+    if (this.formData.useSeasonalHours) {
+      if (this.formData.seasonalPeriods.length === 0) {
+        this.formError = 'Veuillez ajouter au moins une periode saisonniere';
+        return;
+      }
+      for (const period of this.formData.seasonalPeriods) {
+        if (!period.name) {
+          this.formError = 'Veuillez nommer toutes les periodes';
+          return;
+        }
+        if (!period.is24h && (!period.hoursFrom || !period.hoursTo)) {
+          this.formError = `Veuillez specifier les horaires pour "${period.name}"`;
+          return;
+        }
+      }
     }
 
     this.isSavingZone = true;
@@ -276,6 +339,9 @@ export class ZonesComponent implements OnInit, AfterViewInit, OnDestroy {
       coordinates: [this.formData.longitude, this.formData.latitude],
       hourlyRate: this.formData.hourlyRate,
       operatingHours,
+      seasonalOperatingHours: this.formData.useSeasonalHours
+        ? this.formData.seasonalPeriods
+        : [],
       prices: {
         car_sabot: this.formData.carSabot || 0,
         pound: this.formData.pound || 0,

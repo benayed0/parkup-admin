@@ -1,3 +1,14 @@
+export interface SeasonalPeriod {
+  name: string;
+  startMonth: number;
+  startDay: number;
+  endMonth: number;
+  endDay: number;
+  is24h: boolean;
+  hoursFrom?: string;
+  hoursTo?: string;
+}
+
 export interface Zone {
   _id: string;
   code: string;
@@ -8,6 +19,7 @@ export interface Zone {
   };
   hourlyRate: number;
   operatingHours: string;
+  seasonalOperatingHours?: SeasonalPeriod[];
   boundaries: number[][]; // Array of [longitude, latitude] pairs
 
   prices: {
@@ -29,6 +41,7 @@ export interface CreateZoneDto {
   coordinates: [number, number];
   hourlyRate: number;
   operatingHours: string;
+  seasonalOperatingHours?: SeasonalPeriod[];
   prices: {
     car_sabot: number;
     pound: number;
@@ -47,6 +60,7 @@ export interface UpdateZoneDto {
   coordinates?: [number, number];
   hourlyRate?: number;
   operatingHours?: string;
+  seasonalOperatingHours?: SeasonalPeriod[];
   prices?: {
     car_sabot: number;
     pound: number;
