@@ -65,7 +65,7 @@
             </div>
           </div>
 
-          @if (canManageOperators && operator._id !== currentOperatorId) {
+          @if (canManageTarget(operator) && operator._id !== currentOperatorId) {
             <div class="operator-actions">
               <button class="btn btn-sm btn-secondary" (click)="openEditModal(operator)">
                 Modifier
@@ -131,10 +131,9 @@
           <div class="form-group">
             <label for="role">Role</label>
             <select id="role" [(ngModel)]="formData.role" name="role" required>
-              <option value="supervisor">Superviseur</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Admin</option>
-              <option value="super_admin">Super Admin</option>
+              @for (role of availableRoles; track role) {
+                <option [value]="role">{{ roleLabels[role] }}</option>
+              }
             </select>
           </div>
 

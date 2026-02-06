@@ -5,7 +5,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { OperatorsService, CreateOperatorDto } from '../../core/services/operators.service';
 import { ZonesService } from '../../core/services/zones.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Operator, OperatorRole, ROLE_LABELS, PopulatedZone } from '../../core/models/operator.model';
+import { Operator, OperatorRole, ROLE_LABELS, ROLE_HIERARCHY, PopulatedZone } from '../../core/models/operator.model';
 import { Zone } from '../../core/models/zone.model';
 
 @Component({
@@ -41,8 +41,10 @@ export class OperatorsComponent implements OnInit, OnDestroy {
   isDeleting = false;
 
   currentOperatorId = '';
+  currentOperatorRole: OperatorRole = 'supervisor';
   canManageOperators = false;
 
+  availableRoles: OperatorRole[] = [];
   readonly roleLabels = ROLE_LABELS;
 
   constructor(
@@ -55,10 +57,25 @@ export class OperatorsComponent implements OnInit, OnDestroy {
     const currentOp = this.authService.currentOperator;
     if (currentOp) {
       this.currentOperatorId = currentOp._id;
-      this.canManageOperators = currentOp.role === 'super_admin';
+      this.currentOperatorRole = currentOp.role;
+      // Any role above supervisor can manage operators below them
+      this.canManageOperators = ROLE_HIERARCHY[currentOp.role] > ROLE_HIERARCHY['supervisor'];
+      // Compute roles this operator can assign (strictly below their own)
+      const callerLevel = ROLE_HIERARCHY[currentOp.role];
+      this.availableRoles = (Object.keys(ROLE_HIERARCHY) as OperatorRole[])
+        .filter(r => ROLE_HIERARCHY[r] < callerLevel)
+        .sort((a, b) => ROLE_HIERARCHY[b] - ROLE_HIERARCHY[a]);
     }
     this.loadOperators();
     this.loadZones();
+  }
+
+  /**
+   * Check if the current operator can manage (edit/delete/toggle) a target operator.
+   * Only operators with a strictly higher role can manage the target.
+   */
+  canManageTarget(target: Operator): boolean {
+    return ROLE_HIERARCHY[this.currentOperatorRole] > ROLE_HIERARCHY[target.role];
   }
 
   ngOnDestroy(): void {
