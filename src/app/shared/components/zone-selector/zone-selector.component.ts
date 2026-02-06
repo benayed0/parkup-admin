@@ -1,6 +1,7 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject, takeUntil } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { ParkingZone } from '../../../core/models/parking-zone.model';
 
@@ -11,13 +12,14 @@ import { ParkingZone } from '../../../core/models/parking-zone.model';
   templateUrl: './zone-selector.component.html',
   styleUrl: './zone-selector.component.css'
 })
-export class ZoneSelectorComponent implements OnInit {
+export class ZoneSelectorComponent implements OnInit, OnDestroy {
   @Input() label = 'Zones assignées';
   @Input() selectedZoneIds: string[] = [];
   @Output() selectedZoneIdsChange = new EventEmitter<string[]>();
 
   zones: ParkingZone[] = [];
   isLoading = true;
+  private destroy$ = new Subject<void>();
 
   constructor(private apiService: ApiService) {}
 
@@ -25,9 +27,14 @@ export class ZoneSelectorComponent implements OnInit {
     this.loadZones();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   loadZones(): void {
     this.isLoading = true;
-    this.apiService.getParkingZones().subscribe({
+    this.apiService.getParkingZones().pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         this.zones = data.filter(z => z.isActive);
         this.isLoading = false;

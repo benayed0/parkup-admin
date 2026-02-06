@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject, takeUntil } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { Agent } from '../../core/models/agent.model';
 import { ZoneSelectorComponent } from '../../shared/components/zone-selector/zone-selector.component';
@@ -12,11 +13,12 @@ import { ZoneSelectorComponent } from '../../shared/components/zone-selector/zon
   templateUrl: './agents.component.html',
   styleUrl: './agents.component.css'
 })
-export class AgentsComponent implements OnInit {
+export class AgentsComponent implements OnInit, OnDestroy {
   agents: Agent[] = [];
   filteredAgents: Agent[] = [];
   isLoading = true;
   isSaving = false;
+  private destroy$ = new Subject<void>();
 
   filterStatus = 'all';
   searchQuery = '';
@@ -45,6 +47,11 @@ export class AgentsComponent implements OnInit {
     this.loadAgents();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   loadAgents(): void {
     this.isLoading = true;
     const params: any = {};
@@ -55,7 +62,7 @@ export class AgentsComponent implements OnInit {
       params.isActive = false;
     }
 
-    this.apiService.getAgents(params).subscribe({
+    this.apiService.getAgents(params).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         this.agents = data;
         this.filterAgents();
@@ -116,7 +123,7 @@ export class AgentsComponent implements OnInit {
       ...this.newAgent,
       assignedZones: this.newAgentZones.length > 0 ? this.newAgentZones : undefined,
     };
-    this.apiService.createAgent(createData).subscribe({
+    this.apiService.createAgent(createData).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         this.agents.unshift(data);
         this.filterAgents();
@@ -177,11 +184,11 @@ export class AgentsComponent implements OnInit {
     };
 
     // First update the agent info
-    this.apiService.updateAgent(this.editAgent._id, updateData).subscribe({
+    this.apiService.updateAgent(this.editAgent._id, updateData).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         // If password was provided, reset it
         if (this.editPassword) {
-          this.apiService.resetAgentPassword(this.editAgent!._id, this.editPassword).subscribe({
+          this.apiService.resetAgentPassword(this.editAgent!._id, this.editPassword).pipe(takeUntil(this.destroy$)).subscribe({
             next: () => {
               this.updateAgentInList(data);
               this.closeEditModal();
@@ -234,7 +241,7 @@ export class AgentsComponent implements OnInit {
       return;
     }
 
-    this.apiService.deleteAgent(agent._id).subscribe({
+    this.apiService.deleteAgent(agent._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.agents = this.agents.filter((a) => a._id !== agent._id);
         this.filterAgents();

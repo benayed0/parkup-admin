@@ -1,7 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subject, takeUntil } from 'rxjs';
 
 interface DashboardStats {
   totalAgents: number;
@@ -20,8 +20,9 @@ interface DashboardStats {
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   isLoading = true;
+  private destroy$ = new Subject<void>();
   stats: DashboardStats = {
     totalAgents: 0,
     activeAgents: 0,
@@ -38,6 +39,11 @@ export class HomeComponent implements OnInit {
     this.loadStats();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   loadStats(): void {
     this.isLoading = true;
 
@@ -49,7 +55,7 @@ export class HomeComponent implements OnInit {
       paidTickets: this.apiService.getTickets({ status: 'PAID' as any }),
       overdueTickets: this.apiService.getTickets({ status: 'OVERDUE' as any }),
       zones: this.apiService.getParkingZones(),
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (results) => {
         this.stats = {
           totalAgents: results.agents.count,

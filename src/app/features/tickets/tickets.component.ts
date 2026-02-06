@@ -291,7 +291,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   loadAgents(): void {
-    this.apiService.getAgents().subscribe({
+    this.apiService.getAgents().pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         this.agents = data;
       },
@@ -301,7 +301,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
 
   loadZonesAndOccupation(): void {
     // Load zones first
-    this.apiService.getParkingZones().subscribe({
+    this.apiService.getParkingZones().pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data: zones }) => {
         this.zones = zones;
         // Then load active sessions to calculate occupation
@@ -310,6 +310,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
             status: ParkingSessionStatus.ACTIVE,
             limit: 1000,
           })
+          .pipe(takeUntil(this.destroy$))
           .subscribe({
             next: ({ data: sessions }) => {
               this.calculateZoneOccupations(sessions);
@@ -374,7 +375,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       params.agentId = this.filterAgentId;
     }
 
-    this.apiService.getTickets(params).subscribe({
+    this.apiService.getTickets(params).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         this.allTickets = data;
         this.filterTicketsLocally();
@@ -532,7 +533,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    this.apiService.dismissTicket(ticket._id).subscribe({
+    this.apiService.dismissTicket(ticket._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         const index = this.tickets.findIndex((t) => t._id === ticket._id);
         if (index !== -1) {
@@ -557,7 +558,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    this.apiService.payTicket(ticket._id, 'cash').subscribe({
+    this.apiService.payTicket(ticket._id, 'cash').pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         const index = this.tickets.findIndex((t) => t._id === ticket._id);
         if (index !== -1) {
@@ -584,7 +585,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    this.apiService.deleteTicket(ticket._id).subscribe({
+    this.apiService.deleteTicket(ticket._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.tickets = this.tickets.filter((t) => t._id !== ticket._id);
         this.allTickets = this.allTickets.filter((t) => t._id !== ticket._id);
@@ -599,7 +600,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   generateQrCode(ticket: Ticket): void {
-    this.apiService.generateTicketToken(ticket._id).subscribe({
+    this.apiService.generateTicketToken(ticket._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         this.qrModal = {
           visible: true,

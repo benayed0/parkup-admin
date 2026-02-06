@@ -1,7 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subject, takeUntil } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import {
@@ -47,8 +47,9 @@ interface TransactionWithUser {
   templateUrl: './wallets.component.html',
   styleUrl: './wallets.component.css',
 })
-export class WalletsComponent implements OnInit {
+export class WalletsComponent implements OnInit, OnDestroy {
   activeTab: 'wallets' | 'transactions' = 'wallets';
+  private destroy$ = new Subject<void>();
 
   wallets: WalletWithUser[] = [];
   transactions: TransactionWithUser[] = [];
@@ -94,6 +95,11 @@ export class WalletsComponent implements OnInit {
     this.initializeData();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   get isSuperAdmin(): boolean {
     return this.authService.currentOperator?.role === 'super_admin';
   }
@@ -128,7 +134,7 @@ export class WalletsComponent implements OnInit {
     }
 
     // Load parking sessions for operator's zones to get allowed user IDs
-    this.apiService.getParkingSessions({ limit: 1000 }).subscribe({
+    this.apiService.getParkingSessions({ limit: 1000 }).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data: sessions }) => {
         // Filter sessions by operator's zones and extract unique userIds
         this.allowedUserIds = new Set(
@@ -147,7 +153,7 @@ export class WalletsComponent implements OnInit {
 
   loadWallets(): void {
     this.isLoading = true;
-    this.apiService.getWallets({ limit: 100 }).subscribe({
+    this.apiService.getWallets({ limit: 100 }).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data, total }) => {
         let wallets = data as unknown as WalletWithUser[];
 
@@ -188,7 +194,7 @@ export class WalletsComponent implements OnInit {
       params.reason = this.filterReason;
     }
 
-    this.apiService.getWalletTransactions(params).subscribe({
+    this.apiService.getWalletTransactions(params).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data, total }) => {
         let transactions = data as unknown as TransactionWithUser[];
 
@@ -242,7 +248,7 @@ export class WalletsComponent implements OnInit {
     this.showUserTransactionsModal = true;
     this.isLoadingUserTransactions = true;
 
-    this.apiService.getUserWalletTransactions(userId, { limit: 50 }).subscribe({
+    this.apiService.getUserWalletTransactions(userId, { limit: 50 }).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         this.userTransactions = data;
         this.isLoadingUserTransactions = false;
@@ -287,6 +293,7 @@ export class WalletsComponent implements OnInit {
 
     this.apiService
       .creditUserWallet(userId, this.creditAmount, this.creditReason)
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
           this.showMessage('success', 'Portefeuille credite avec succes');

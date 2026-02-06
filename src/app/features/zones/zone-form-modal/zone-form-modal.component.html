@@ -1,0 +1,336 @@
+<div class="modal-overlay" (click)="close()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ editingZone ? 'Modifier la Zone' : 'Nouvelle Zone' }}</h2>
+      <button class="close-btn" (click)="close()">&times;</button>
+    </div>
+    <form (ngSubmit)="saveZone()" class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="code">Code</label>
+          <input
+            type="text"
+            id="code"
+            [(ngModel)]="formData.code"
+            name="code"
+            required
+            placeholder="Ex: TUN01"
+            [disabled]="!!editingZone"
+          />
+        </div>
+        <div class="form-group">
+          <label for="name">Nom</label>
+          <input
+            type="text"
+            id="name"
+            [(ngModel)]="formData.name"
+            name="name"
+            required
+            placeholder="Nom de la zone"
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea
+          id="description"
+          [(ngModel)]="formData.description"
+          name="description"
+          rows="2"
+          placeholder="Description optionnelle"
+        ></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="address">Adresse</label>
+        <input
+          type="text"
+          id="address"
+          [(ngModel)]="formData.address"
+          name="address"
+          placeholder="Ex: Avenue Habib Bourguiba, Tunis"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="phoneNumber">Telephone</label>
+        <input
+          type="tel"
+          id="phoneNumber"
+          [(ngModel)]="formData.phoneNumber"
+          name="phoneNumber"
+          placeholder="Ex: +216 71 123 456"
+        />
+      </div>
+
+      <div class="form-group">
+        <label>Emplacement</label>
+        <div class="location-picker">
+          <div id="location-picker-map" class="picker-map"></div>
+          <div class="location-info">
+            @if (formData.latitude && formData.longitude) {
+              <span class="coords">{{ formData.latitude | number:'1.4-4' }}, {{ formData.longitude | number:'1.4-4' }}</span>
+            } @else {
+              <span class="coords-placeholder">Cliquez sur la carte pour definir l'emplacement</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="hourlyRate">Tarif horaire (TND)</label>
+          <input
+            type="number"
+            id="hourlyRate"
+            [(ngModel)]="formData.hourlyRate"
+            name="hourlyRate"
+            required
+            min="0"
+            step="0.1"
+            placeholder="1.5"
+          />
+        </div>
+        <div class="form-group">
+          <label for="numberOfPlaces">Nombre de places</label>
+          <input
+            type="number"
+            id="numberOfPlaces"
+            [(ngModel)]="formData.numberOfPlaces"
+            name="numberOfPlaces"
+            min="0"
+            step="1"
+            placeholder="50"
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Horaires d'exploitation</label>
+
+        <div class="hours-mode-toggle">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              [(ngModel)]="formData.useSeasonalHours"
+              name="useSeasonalHours"
+            />
+            <span>Utiliser des horaires saisonniers</span>
+          </label>
+        </div>
+
+        @if (!formData.useSeasonalHours) {
+          <div class="simple-hours-section">
+            <div class="hours-24-toggle">
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="formData.is24h"
+                  name="is24h"
+                />
+                <span>24h/24</span>
+              </label>
+            </div>
+            @if (!formData.is24h) {
+              <div class="time-range">
+                <div class="time-input">
+                  <label for="hoursFrom">De</label>
+                  <select id="hoursFrom" [(ngModel)]="formData.hoursFrom" name="hoursFrom" required>
+                    @for (hour of hourOptions; track hour) {
+                      <option [value]="hour">{{ hour }}</option>
+                    }
+                  </select>
+                </div>
+                <span class="time-separator">-</span>
+                <div class="time-input">
+                  <label for="hoursTo">A</label>
+                  <select id="hoursTo" [(ngModel)]="formData.hoursTo" name="hoursTo" required>
+                    @for (hour of hourOptions; track hour) {
+                      <option [value]="hour">{{ hour }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (formData.useSeasonalHours) {
+          <div class="seasonal-hours-section">
+            <div class="seasonal-periods">
+              @for (period of formData.seasonalPeriods; track $index) {
+                <div class="seasonal-period-card">
+                  <div class="period-header">
+                    <input
+                      type="text"
+                      [(ngModel)]="period.name"
+                      [name]="'periodName' + $index"
+                      placeholder="Nom (ex: Ete, Hiver)"
+                      class="period-name-input"
+                    />
+                    <button
+                      type="button"
+                      class="btn-remove-period"
+                      (click)="removeSeasonalPeriod($index)"
+                    >
+                      &times;
+                    </button>
+                  </div>
+
+                  <div class="period-dates">
+                    <div class="date-range">
+                      <span class="date-label">Du</span>
+                      <select [(ngModel)]="period.startDay" [name]="'startDay' + $index">
+                        @for (day of days; track day) {
+                          <option [value]="day">{{ day }}</option>
+                        }
+                      </select>
+                      <select [(ngModel)]="period.startMonth" [name]="'startMonth' + $index">
+                        @for (month of months; track month.value) {
+                          <option [value]="month.value">{{ month.label }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="date-range">
+                      <span class="date-label">au</span>
+                      <select [(ngModel)]="period.endDay" [name]="'endDay' + $index">
+                        @for (day of days; track day) {
+                          <option [value]="day">{{ day }}</option>
+                        }
+                      </select>
+                      <select [(ngModel)]="period.endMonth" [name]="'endMonth' + $index">
+                        @for (month of months; track month.value) {
+                          <option [value]="month.value">{{ month.label }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="period-hours">
+                    <label class="checkbox-label">
+                      <input
+                        type="checkbox"
+                        [(ngModel)]="period.is24h"
+                        [name]="'periodIs24h' + $index"
+                      />
+                      <span>24h/24</span>
+                    </label>
+                    @if (!period.is24h) {
+                      <div class="time-range">
+                        <select [(ngModel)]="period.hoursFrom" [name]="'periodHoursFrom' + $index">
+                          @for (hour of hourOptions; track hour) {
+                            <option [value]="hour">{{ hour }}</option>
+                          }
+                        </select>
+                        <span>-</span>
+                        <select [(ngModel)]="period.hoursTo" [name]="'periodHoursTo' + $index">
+                          @for (hour of hourOptions; track hour) {
+                            <option [value]="hour">{{ hour }}</option>
+                          }
+                        </select>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm btn-add-period"
+              (click)="addSeasonalPeriod()"
+            >
+              + Ajouter une periode
+            </button>
+
+            <div class="default-hours-section">
+              <p class="hint">Horaires par defaut (quand aucune periode ne correspond) :</p>
+              <div class="hours-24-toggle">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="formData.is24h"
+                    name="is24hDefault"
+                  />
+                  <span>24h/24</span>
+                </label>
+              </div>
+              @if (!formData.is24h) {
+                <div class="time-range">
+                  <div class="time-input">
+                    <label>De</label>
+                    <select [(ngModel)]="formData.hoursFrom" name="hoursFromDefault">
+                      @for (hour of hourOptions; track hour) {
+                        <option [value]="hour">{{ hour }}</option>
+                      }
+                    </select>
+                  </div>
+                  <span class="time-separator">-</span>
+                  <div class="time-input">
+                    <label>A</label>
+                    <select [(ngModel)]="formData.hoursTo" name="hoursToDefault">
+                      @for (hour of hourOptions; track hour) {
+                        <option [value]="hour">{{ hour }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="carSabot">Prix Sabot (TND)</label>
+          <input
+            type="number"
+            id="carSabot"
+            [(ngModel)]="formData.carSabot"
+            name="carSabot"
+            required
+            min="0"
+            step="1"
+            placeholder="50"
+          />
+        </div>
+        <div class="form-group">
+          <label for="pound">Prix Fourriere (TND)</label>
+          <input
+            type="number"
+            id="pound"
+            [(ngModel)]="formData.pound"
+            name="pound"
+            required
+            min="0"
+            step="1"
+            placeholder="100"
+          />
+        </div>
+      </div>
+
+      @if (formError) {
+      <div class="form-error">{{ formError }}</div>
+      }
+
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="close()"
+        >
+          Annuler
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [disabled]="isSavingZone"
+        >
+          {{ isSavingZone ? 'Enregistrement...' : 'Enregistrer' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

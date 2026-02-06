@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject, takeUntil } from 'rxjs';
 import { OperatorsService, CreateOperatorDto } from '../../core/services/operators.service';
 import { ZonesService } from '../../core/services/zones.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -14,11 +15,12 @@ import { Zone } from '../../core/models/zone.model';
   templateUrl: './operators.component.html',
   styleUrl: './operators.component.css'
 })
-export class OperatorsComponent implements OnInit {
+export class OperatorsComponent implements OnInit, OnDestroy {
   operators: Operator[] = [];
   zones: Zone[] = [];
   zonesMap: Map<string, Zone> = new Map();
   isLoading = true;
+  private destroy$ = new Subject<void>();
   error = '';
 
   showModal = false;
@@ -59,11 +61,16 @@ export class OperatorsComponent implements OnInit {
     this.loadZones();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   loadOperators(): void {
     this.isLoading = true;
     this.error = '';
 
-    this.operatorsService.getAll().subscribe({
+    this.operatorsService.getAll().pipe(takeUntil(this.destroy$)).subscribe({
       next: (response) => {
         this.operators = response.data;
         this.isLoading = false;
@@ -76,7 +83,7 @@ export class OperatorsComponent implements OnInit {
   }
 
   loadZones(): void {
-    this.zonesService.getAll({ isActive: true }).subscribe({
+    this.zonesService.getAll({ isActive: true }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (response) => {
         this.zones = response.data;
         this.zonesMap = new Map(this.zones.map(z => [z._id, z]));
@@ -157,7 +164,7 @@ export class OperatorsComponent implements OnInit {
       ? this.operatorsService.update(this.editingOperator._id, this.formData)
       : this.operatorsService.create(this.formData);
 
-    request.subscribe({
+    request.pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.isSaving = false;
         this.closeModal();
@@ -218,7 +225,7 @@ export class OperatorsComponent implements OnInit {
     this.zonesSaving = true;
     this.zonesError = '';
 
-    this.operatorsService.updateZones(this.zonesOperator._id, this.selectedZoneIds).subscribe({
+    this.operatorsService.updateZones(this.zonesOperator._id, this.selectedZoneIds).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.zonesSaving = false;
         this.closeZonesModal();
@@ -236,7 +243,7 @@ export class OperatorsComponent implements OnInit {
       ? this.operatorsService.deactivate(operator._id)
       : this.operatorsService.activate(operator._id);
 
-    request.subscribe({
+    request.pipe(takeUntil(this.destroy$)).subscribe({
       next: () => this.loadOperators(),
       error: (err) => {
         alert(err.error?.message || 'Erreur lors du changement de statut');
@@ -259,7 +266,7 @@ export class OperatorsComponent implements OnInit {
 
     this.isDeleting = true;
 
-    this.operatorsService.delete(this.operatorToDelete._id).subscribe({
+    this.operatorsService.delete(this.operatorToDelete._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.isDeleting = false;
         this.closeDeleteModal();

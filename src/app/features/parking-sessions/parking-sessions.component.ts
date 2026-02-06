@@ -272,7 +272,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
   }
 
   loadZones(): void {
-    this.apiService.getParkingZones().subscribe({
+    this.apiService.getParkingZones().pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         this.zones = data;
       },
@@ -299,7 +299,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
       params.zoneId = this.filterZoneId;
     }
 
-    this.apiService.getParkingSessions(params).subscribe({
+    this.apiService.getParkingSessions(params).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         // Filter sessions by operator's zones if not super_admin
         if (!this.isSuperAdmin) {
@@ -502,6 +502,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
         additionalMinutes: this.extendMinutes,
         additionalAmount: this.extendAmount || 0,
       })
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: ({ data }) => {
           const index = this.sessions.findIndex(
@@ -532,7 +533,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
       return;
     }
 
-    this.apiService.endParkingSession(session._id).subscribe({
+    this.apiService.endParkingSession(session._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         const index = this.sessions.findIndex((s) => s._id === session._id);
         if (index !== -1) {
@@ -559,7 +560,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
       return;
     }
 
-    this.apiService.cancelParkingSession(session._id).subscribe({
+    this.apiService.cancelParkingSession(session._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ data }) => {
         const index = this.sessions.findIndex((s) => s._id === session._id);
         if (index !== -1) {
@@ -590,7 +591,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
       return;
     }
 
-    this.apiService.deleteParkingSession(session._id).subscribe({
+    this.apiService.deleteParkingSession(session._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.sessions = this.sessions.filter((s) => s._id !== session._id);
         this.allSessions = this.allSessions.filter(
@@ -607,7 +608,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
   }
 
   updateExpiredSessions(): void {
-    this.apiService.updateExpiredSessions().subscribe({
+    this.apiService.updateExpiredSessions().pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ count, message }) => {
         this.showMessage(
           'success',
