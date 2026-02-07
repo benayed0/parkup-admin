@@ -2,7 +2,7 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
-import { ApiService } from '../../../core/services/api.service';
+import { DataStoreService } from '../../../core/services/data-store.service';
 import { ParkingZone } from '../../../core/models/parking-zone.model';
 
 @Component({
@@ -21,29 +21,19 @@ export class ZoneSelectorComponent implements OnInit, OnDestroy {
   isLoading = true;
   private destroy$ = new Subject<void>();
 
-  constructor(private apiService: ApiService) {}
+  constructor(private dataStore: DataStoreService) {}
 
   ngOnInit(): void {
-    this.loadZones();
+    this.dataStore.loadZones();
+    this.dataStore.zones$.pipe(takeUntil(this.destroy$)).subscribe((zones) => {
+      this.zones = zones.filter(z => z.isActive);
+      this.isLoading = false;
+    });
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-  }
-
-  loadZones(): void {
-    this.isLoading = true;
-    this.apiService.getParkingZones().pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ data }) => {
-        this.zones = data.filter(z => z.isActive);
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Error loading zones:', err);
-        this.isLoading = false;
-      },
-    });
   }
 
   isSelected(zoneId: string): boolean {

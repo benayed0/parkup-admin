@@ -20,6 +20,7 @@ L.Marker.prototype.options.icon = L.icon({
 
 import { ZonesService } from '../../core/services/zones.service';
 import { AuthService } from '../../core/services/auth.service';
+import { DataStoreService } from '../../core/services/data-store.service';
 import { Zone } from '../../core/models/zone.model';
 import { ZoneFormModalComponent } from './zone-form-modal/zone-form-modal.component';
 import { StreetsEditorComponent } from './streets-editor/streets-editor.component';
@@ -53,7 +54,8 @@ export class ZonesComponent implements OnInit, OnDestroy {
 
   constructor(
     private zonesService: ZonesService,
-    private authService: AuthService
+    private authService: AuthService,
+    private dataStore: DataStoreService
   ) {}
 
   ngOnInit(): void {
@@ -109,6 +111,7 @@ export class ZonesComponent implements OnInit, OnDestroy {
   onZoneSaved(): void {
     this.closeModal();
     this.loadZones();
+    this.dataStore.refreshZones();
   }
 
   // ==================== STREETS EDITOR ====================
@@ -136,7 +139,10 @@ export class ZonesComponent implements OnInit, OnDestroy {
     this.zonesService.update(zone._id, { isActive: !zone.isActive })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: () => this.loadZones(),
+        next: () => {
+          this.loadZones();
+          this.dataStore.refreshZones();
+        },
         error: (err) => {
           alert(err.error?.message || 'Erreur lors du changement de statut');
         },
@@ -165,6 +171,7 @@ export class ZonesComponent implements OnInit, OnDestroy {
           this.isDeleting = false;
           this.closeDeleteModal();
           this.loadZones();
+          this.dataStore.refreshZones();
         },
         error: (err) => {
           this.isDeleting = false;

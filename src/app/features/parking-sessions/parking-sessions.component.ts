@@ -7,29 +7,19 @@ import * as L from 'leaflet';
 import 'leaflet.markercluster';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { DataStoreService } from '../../core/services/data-store.service';
 import {
   ParkingSession,
   ParkingSessionStatus,
   LicensePlate,
   PlateType,
 } from '../../core/models/parking-session.model';
-import { ParkingZone, ZoneOccupation } from '../../core/models/parking-zone.model';
+import { ParkingZone } from '../../core/models/parking-zone.model';
 import { PopulatedZone } from '../../core/models/operator.model';
 import {
   LicensePlateInputComponent,
   LicensePlateDisplayComponent,
 } from '../../shared/components/license-plate-input';
-
-interface SessionStats {
-  totalSessions: number;
-  activeSessions: number;
-  todaySessions: number;
-  todayRevenue: number;
-  totalRevenue: number;
-  avgDuration: number;
-  completedToday: number;
-  expiredToday: number;
-}
 
 @Component({
   selector: 'app-parking-sessions',
@@ -47,7 +37,6 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
   sessions: ParkingSession[] = [];
   allSessions: ParkingSession[] = [];
   zones: ParkingZone[] = [];
-  zoneOccupations: ZoneOccupation[] = [];
   isLoading = true;
 
   filterStatus = '';
@@ -68,17 +57,6 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
 
   message: { type: 'success' | 'error'; text: string } | null = null;
 
-  stats: SessionStats = {
-    totalSessions: 0,
-    activeSessions: 0,
-    todaySessions: 0,
-    todayRevenue: 0,
-    totalRevenue: 0,
-    avgDuration: 0,
-    completedToday: 0,
-    expiredToday: 0,
-  };
-
   private plateSearch$ = new Subject<string>();
   private destroy$ = new Subject<void>();
 
@@ -91,11 +69,15 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
 
   constructor(
     private apiService: ApiService,
-    private authService: AuthService
+    private authService: AuthService,
+    private dataStore: DataStoreService
   ) {}
 
   ngOnInit(): void {
-    this.loadZones();
+    this.dataStore.loadZones();
+    this.dataStore.zones$.pipe(takeUntil(this.destroy$)).subscribe((zones) => {
+      this.zones = zones;
+    });
     this.loadSessions();
 
     // Debounced plate search - filter locally for instant feedback
@@ -271,15 +253,6 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
     );
   }
 
-  loadZones(): void {
-    this.apiService.getParkingZones().pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ data }) => {
-        this.zones = data;
-      },
-      error: (err) => console.error('Error loading zones:', err),
-    });
-  }
-
   onPlateSearchChange(plate: LicensePlate): void {
     this.searchPlateData = plate;
     this.searchPlate = plate.formatted || '';
@@ -313,7 +286,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
 
         // Apply local plate filter
         this.filterSessionsLocally();
-        this.calculateStats();
+
         this.isLoading = false;
       },
       error: (err) => {
@@ -373,87 +346,6 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
     const hasLeft = this.searchPlateData.left?.trim();
     const hasRight = this.searchPlateData.right?.trim();
     return !hasLeft && !hasRight;
-  }
-
-  private calculateStats(): void {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const todaySessions = this.allSessions.filter((s) => {
-      const sessionDate = new Date(s.startTime);
-      return sessionDate >= today;
-    });
-
-    const completedTodaySessions = todaySessions.filter(
-      (s) => s.status === ParkingSessionStatus.COMPLETED
-    );
-
-    const expiredTodaySessions = todaySessions.filter(
-      (s) => s.status === ParkingSessionStatus.EXPIRED
-    );
-
-    const activeSessions = this.allSessions.filter(
-      (s) => s.status === ParkingSessionStatus.ACTIVE
-    );
-
-    const totalDuration = this.allSessions.reduce(
-      (sum, s) => sum + (s.durationMinutes || 0),
-      0
-    );
-
-    this.stats = {
-      totalSessions: this.allSessions.length,
-      activeSessions: activeSessions.length,
-      todaySessions: todaySessions.length,
-      todayRevenue: todaySessions.reduce((sum, s) => sum + (s.amount || 0), 0),
-      totalRevenue: this.allSessions.reduce(
-        (sum, s) => sum + (s.amount || 0),
-        0
-      ),
-      avgDuration:
-        this.allSessions.length > 0
-          ? totalDuration / this.allSessions.length
-          : 0,
-      completedToday: completedTodaySessions.length,
-      expiredToday: expiredTodaySessions.length,
-    };
-
-    this.calculateZoneOccupations();
-  }
-
-  private calculateZoneOccupations(): void {
-    if (!this.zones.length) return;
-
-    const activeSessionsByZone = new Map<string, number>();
-
-    // Count active sessions per zone
-    this.allSessions
-      .filter((s) => s.status === ParkingSessionStatus.ACTIVE)
-      .forEach((session) => {
-        const count = activeSessionsByZone.get(session.zoneId) || 0;
-        activeSessionsByZone.set(session.zoneId, count + 1);
-      });
-
-    // Calculate occupation for each zone
-    this.zoneOccupations = this.zones
-      .filter((zone) => zone.numberOfPlaces > 0)
-      .map((zone) => {
-        const activeSessions = activeSessionsByZone.get(zone._id) || 0;
-        const occupationRate = Math.min(
-          100,
-          Math.round((activeSessions / zone.numberOfPlaces) * 100)
-        );
-
-        return {
-          zoneId: zone._id,
-          zoneName: zone.name,
-          zoneCode: zone.code,
-          numberOfPlaces: zone.numberOfPlaces,
-          activeSessions,
-          occupationRate,
-        };
-      })
-      .sort((a, b) => b.occupationRate - a.occupationRate);
   }
 
   isOverdue(session: ParkingSession): boolean {
@@ -517,7 +409,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
           if (allIndex !== -1) {
             this.allSessions[allIndex] = data;
           }
-          this.calculateStats();
+  
           this.showMessage('success', 'Session prolongee avec succes');
           this.closeExtendModal();
         },
@@ -545,7 +437,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
         if (allIndex !== -1) {
           this.allSessions[allIndex] = data;
         }
-        this.calculateStats();
+
         this.showMessage('success', 'Session terminee');
       },
       error: (err) => {
@@ -572,7 +464,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
         if (allIndex !== -1) {
           this.allSessions[allIndex] = data;
         }
-        this.calculateStats();
+
         this.showMessage('success', 'Session annulee');
       },
       error: (err) => {
@@ -597,7 +489,7 @@ export class ParkingSessionsComponent implements OnInit, OnDestroy, AfterViewIni
         this.allSessions = this.allSessions.filter(
           (s) => s._id !== session._id
         );
-        this.calculateStats();
+
         this.showMessage('success', 'Session supprimee');
       },
       error: (err) => {

@@ -3,13 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
+import { DataStoreService } from '../../core/services/data-store.service';
 import { Agent } from '../../core/models/agent.model';
 import { ZoneSelectorComponent } from '../../shared/components/zone-selector/zone-selector.component';
+import { PhoneInputComponent } from '../../shared/components/phone-input/phone-input.component';
 
 @Component({
   selector: 'app-agents',
   standalone: true,
-  imports: [CommonModule, FormsModule, ZoneSelectorComponent],
+  imports: [CommonModule, FormsModule, ZoneSelectorComponent, PhoneInputComponent],
   templateUrl: './agents.component.html',
   styleUrl: './agents.component.css'
 })
@@ -41,10 +43,22 @@ export class AgentsComponent implements OnInit, OnDestroy {
 
   message: { type: 'success' | 'error'; text: string } | null = null;
 
-  constructor(private apiService: ApiService) {}
+  private allAgents: Agent[] = [];
+  totalAgentsCount = 0;
+
+  constructor(
+    private apiService: ApiService,
+    private dataStore: DataStoreService
+  ) {}
 
   ngOnInit(): void {
-    this.loadAgents();
+    this.dataStore.loadAgents();
+    this.dataStore.agents$.pipe(takeUntil(this.destroy$)).subscribe((agents) => {
+      this.allAgents = agents;
+      this.totalAgentsCount = agents.length;
+      this.filterAgents();
+      this.isLoading = false;
+    });
   }
 
   ngOnDestroy(): void {
@@ -52,43 +66,29 @@ export class AgentsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  loadAgents(): void {
-    this.isLoading = true;
-    const params: any = {};
-
-    if (this.filterStatus === 'active') {
-      params.isActive = true;
-    } else if (this.filterStatus === 'inactive') {
-      params.isActive = false;
-    }
-
-    this.apiService.getAgents(params).pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ data }) => {
-        this.agents = data;
-        this.filterAgents();
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Error loading agents:', err);
-        this.showMessage('error', 'Erreur lors du chargement des agents');
-        this.isLoading = false;
-      },
-    });
-  }
-
   filterAgents(): void {
-    if (!this.searchQuery.trim()) {
-      this.filteredAgents = this.agents;
-      return;
+    let result = this.allAgents;
+
+    // Apply status filter
+    if (this.filterStatus === 'active') {
+      result = result.filter((a) => a.isActive);
+    } else if (this.filterStatus === 'inactive') {
+      result = result.filter((a) => !a.isActive);
     }
 
-    const query = this.searchQuery.toLowerCase();
-    this.filteredAgents = this.agents.filter(
-      (agent) =>
-        agent.name.toLowerCase().includes(query) ||
-        agent.username.toLowerCase().includes(query) ||
-        (agent.phone && agent.phone.toLowerCase().includes(query))
-    );
+    // Apply search filter
+    if (this.searchQuery.trim()) {
+      const query = this.searchQuery.toLowerCase();
+      result = result.filter(
+        (agent) =>
+          agent.name.toLowerCase().includes(query) ||
+          agent.username.toLowerCase().includes(query) ||
+          (agent.phone && agent.phone.toLowerCase().includes(query))
+      );
+    }
+
+    this.agents = result;
+    this.filteredAgents = result;
   }
 
   openCreateModal(): void {
@@ -124,9 +124,8 @@ export class AgentsComponent implements OnInit, OnDestroy {
       assignedZones: this.newAgentZones.length > 0 ? this.newAgentZones : undefined,
     };
     this.apiService.createAgent(createData).pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ data }) => {
-        this.agents.unshift(data);
-        this.filterAgents();
+      next: () => {
+        this.dataStore.refreshAgents();
         this.closeCreateModal();
         this.showMessage('success', 'Agent créé avec succès');
         this.isSaving = false;
@@ -185,26 +184,26 @@ export class AgentsComponent implements OnInit, OnDestroy {
 
     // First update the agent info
     this.apiService.updateAgent(this.editAgent._id, updateData).pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ data }) => {
+      next: () => {
         // If password was provided, reset it
         if (this.editPassword) {
           this.apiService.resetAgentPassword(this.editAgent!._id, this.editPassword).pipe(takeUntil(this.destroy$)).subscribe({
             next: () => {
-              this.updateAgentInList(data);
+              this.dataStore.refreshAgents();
               this.closeEditModal();
               this.showMessage('success', 'Agent modifié avec succès');
               this.isSaving = false;
             },
             error: (err) => {
               console.error('Error resetting password:', err);
-              this.updateAgentInList(data);
+              this.dataStore.refreshAgents();
               this.closeEditModal();
               this.showMessage('error', 'Agent modifié mais erreur lors du changement de mot de passe');
               this.isSaving = false;
             },
           });
         } else {
-          this.updateAgentInList(data);
+          this.dataStore.refreshAgents();
           this.closeEditModal();
           this.showMessage('success', 'Agent modifié avec succès');
           this.isSaving = false;
@@ -216,14 +215,6 @@ export class AgentsComponent implements OnInit, OnDestroy {
         this.isSaving = false;
       },
     });
-  }
-
-  private updateAgentInList(updatedAgent: Agent): void {
-    const index = this.agents.findIndex((a) => a._id === updatedAgent._id);
-    if (index !== -1) {
-      this.agents[index] = updatedAgent;
-      this.filterAgents();
-    }
   }
 
   generateEditPassword(): void {
@@ -243,8 +234,7 @@ export class AgentsComponent implements OnInit, OnDestroy {
 
     this.apiService.deleteAgent(agent._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
-        this.agents = this.agents.filter((a) => a._id !== agent._id);
-        this.filterAgents();
+        this.dataStore.refreshAgents();
         this.showMessage('success', 'Agent supprimé');
       },
       error: (err) => {

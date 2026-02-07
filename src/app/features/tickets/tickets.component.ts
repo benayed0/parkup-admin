@@ -7,35 +7,18 @@ import { debounceTime, takeUntil } from 'rxjs/operators';
 import * as L from 'leaflet';
 import 'leaflet.markercluster';
 import { ApiService } from '../../core/services/api.service';
+import { DataStoreService } from '../../core/services/data-store.service';
 import {
   Ticket,
   TicketStatus,
   TicketReason,
 } from '../../core/models/ticket.model';
 import { Agent } from '../../core/models/agent.model';
-import {
-  LicensePlate,
-  ParkingSessionStatus,
-} from '../../core/models/parking-session.model';
-import {
-  ParkingZone,
-  ZoneOccupation,
-} from '../../core/models/parking-zone.model';
+import { LicensePlate } from '../../core/models/parking-session.model';
 import {
   LicensePlateInputComponent,
   LicensePlateDisplayComponent,
 } from '../../shared/components/license-plate-input';
-
-interface TicketStats {
-  totalTickets: number;
-  pendingTickets: number;
-  todayTickets: number;
-  todayFines: number;
-  totalFines: number;
-  paidTickets: number;
-  overdueTickets: number;
-  paidToday: number;
-}
 
 @Component({
   selector: 'app-tickets',
@@ -53,8 +36,6 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
   tickets: Ticket[] = [];
   allTickets: Ticket[] = []; // All tickets from API (filtered by status/agent)
   agents: Agent[] = [];
-  zones: ParkingZone[] = [];
-  zoneOccupations: ZoneOccupation[] = [];
   isLoading = true;
 
   filterStatus = '';
@@ -73,17 +54,6 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
     visible: false,
     dataUrl: '',
     ticketNumber: '',
-  };
-
-  stats: TicketStats = {
-    totalTickets: 0,
-    pendingTickets: 0,
-    todayTickets: 0,
-    todayFines: 0,
-    totalFines: 0,
-    paidTickets: 0,
-    overdueTickets: 0,
-    paidToday: 0,
   };
 
   private plateSearch$ = new Subject<string>();
@@ -105,13 +75,16 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
 
   constructor(
     private apiService: ApiService,
+    private dataStore: DataStoreService,
     private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
-    this.loadAgents();
+    this.dataStore.loadAgents();
+    this.dataStore.agents$.pipe(takeUntil(this.destroy$)).subscribe((agents) => {
+      this.agents = agents;
+    });
     this.loadTickets();
-    this.loadZonesAndOccupation();
 
     // Debounced plate search - filter locally for instant feedback
     this.plateSearch$
@@ -290,72 +263,6 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
     `;
   }
 
-  loadAgents(): void {
-    this.apiService.getAgents().pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ data }) => {
-        this.agents = data;
-      },
-      error: (err) => console.error('Error loading agents:', err),
-    });
-  }
-
-  loadZonesAndOccupation(): void {
-    // Load zones first
-    this.apiService.getParkingZones().pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ data: zones }) => {
-        this.zones = zones;
-        // Then load active sessions to calculate occupation
-        this.apiService
-          .getParkingSessions({
-            status: ParkingSessionStatus.ACTIVE,
-            limit: 1000,
-          })
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
-            next: ({ data: sessions }) => {
-              this.calculateZoneOccupations(sessions);
-            },
-            error: (err) =>
-              console.error('Error loading sessions for occupation:', err),
-          });
-      },
-      error: (err) => console.error('Error loading zones:', err),
-    });
-  }
-
-  private calculateZoneOccupations(sessions: any[]): void {
-    if (!this.zones.length) return;
-
-    const activeSessionsByZone = new Map<string, number>();
-
-    // Count active sessions per zone
-    sessions.forEach((session) => {
-      const count = activeSessionsByZone.get(session.zoneId) || 0;
-      activeSessionsByZone.set(session.zoneId, count + 1);
-    });
-
-    // Calculate occupation for each zone
-    this.zoneOccupations = this.zones
-      .filter((zone) => zone.numberOfPlaces > 0)
-      .map((zone) => {
-        const activeSessions = activeSessionsByZone.get(zone._id) || 0;
-        const occupationRate = Math.min(
-          100,
-          Math.round((activeSessions / zone.numberOfPlaces) * 100)
-        );
-
-        return {
-          zoneId: zone._id,
-          zoneName: zone.name,
-          zoneCode: zone.code,
-          numberOfPlaces: zone.numberOfPlaces,
-          activeSessions,
-          occupationRate,
-        };
-      })
-      .sort((a, b) => b.occupationRate - a.occupationRate);
-  }
-
   onPlateSearchChange(plate: LicensePlate): void {
     this.searchPlateData = plate;
     this.searchPlate = plate.formatted || '';
@@ -379,7 +286,6 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       next: ({ data }) => {
         this.allTickets = data;
         this.filterTicketsLocally();
-        this.calculateStats();
         this.isLoading = false;
       },
       error: (err) => {
@@ -388,46 +294,6 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
         this.isLoading = false;
       },
     });
-  }
-
-  private calculateStats(): void {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const todayTickets = this.allTickets.filter((t) => {
-      const ticketDate = new Date(t.issuedAt);
-      return ticketDate >= today;
-    });
-
-    const paidTodayTickets = todayTickets.filter(
-      (t) => t.status === TicketStatus.PAID
-    );
-
-    const pendingTickets = this.allTickets.filter(
-      (t) => t.status === TicketStatus.PENDING
-    );
-
-    const overdueTickets = this.allTickets.filter(
-      (t) => t.status === TicketStatus.OVERDUE
-    );
-
-    const paidTickets = this.allTickets.filter(
-      (t) => t.status === TicketStatus.PAID
-    );
-
-    this.stats = {
-      totalTickets: this.allTickets.length,
-      pendingTickets: pendingTickets.length,
-      todayTickets: todayTickets.length,
-      todayFines: todayTickets.reduce((sum, t) => sum + (t.fineAmount || 0), 0),
-      totalFines: this.allTickets.reduce(
-        (sum, t) => sum + (t.fineAmount || 0),
-        0
-      ),
-      paidTickets: paidTickets.length,
-      overdueTickets: overdueTickets.length,
-      paidToday: paidTodayTickets.length,
-    };
   }
 
   private filterTicketsLocally(): void {
@@ -543,7 +409,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
         if (allIndex !== -1) {
           this.allTickets[allIndex] = data;
         }
-        this.calculateStats();
+
         this.showMessage('success', 'Ticket annulé');
       },
       error: (err) => {
@@ -568,7 +434,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
         if (allIndex !== -1) {
           this.allTickets[allIndex] = data;
         }
-        this.calculateStats();
+
         this.showMessage('success', 'Ticket marqué comme payé');
       },
       error: (err) => {
@@ -589,7 +455,7 @@ export class TicketsComponent implements OnInit, OnDestroy, AfterViewInit {
       next: () => {
         this.tickets = this.tickets.filter((t) => t._id !== ticket._id);
         this.allTickets = this.allTickets.filter((t) => t._id !== ticket._id);
-        this.calculateStats();
+
         this.showMessage('success', 'Ticket supprimé');
       },
       error: (err) => {

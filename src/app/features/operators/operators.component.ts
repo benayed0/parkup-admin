@@ -3,8 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { OperatorsService, CreateOperatorDto } from '../../core/services/operators.service';
-import { ZonesService } from '../../core/services/zones.service';
 import { AuthService } from '../../core/services/auth.service';
+import { DataStoreService } from '../../core/services/data-store.service';
 import { Operator, OperatorRole, ROLE_LABELS, ROLE_HIERARCHY, PopulatedZone } from '../../core/models/operator.model';
 import { Zone } from '../../core/models/zone.model';
 
@@ -49,8 +49,8 @@ export class OperatorsComponent implements OnInit, OnDestroy {
 
   constructor(
     private operatorsService: OperatorsService,
-    private zonesService: ZonesService,
-    private authService: AuthService
+    private authService: AuthService,
+    private dataStore: DataStoreService
   ) {}
 
   ngOnInit(): void {
@@ -100,14 +100,11 @@ export class OperatorsComponent implements OnInit, OnDestroy {
   }
 
   loadZones(): void {
-    this.zonesService.getAll({ isActive: true }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (response) => {
-        this.zones = response.data;
-        this.zonesMap = new Map(this.zones.map(z => [z._id, z]));
-      },
-      error: () => {
-        // Silently fail, zones will just not be available
-      },
+    this.dataStore.loadZones();
+    this.dataStore.zones$.pipe(takeUntil(this.destroy$)).subscribe((zones) => {
+      // Filter to active zones only (same as previous behavior)
+      this.zones = zones.filter(z => z.isActive) as any[];
+      this.zonesMap = new Map(this.zones.map(z => [z._id, z]));
     });
   }
 

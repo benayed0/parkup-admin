@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, shareReplay, tap } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ParkingZone } from '../models/parking-zone.model';
 import { Street, CreateStreetDto } from '../models/street.model';
@@ -25,23 +25,6 @@ import {
 })
 export class ApiService {
   private readonly apiUrl = environment.apiUrl;
-  private readonly CACHE_DURATION = 30_000; // 30 seconds
-
-  // Cache for getParkingZones()
-  private parkingZonesCache$: Observable<{
-    count: number;
-    data: ParkingZone[];
-    success: boolean;
-  }> | null = null;
-  private parkingZonesCacheExpiry = 0;
-
-  // Cache for getAgents() (no params)
-  private agentsCache$: Observable<{
-    data: Agent[];
-    success: boolean;
-    count: number;
-  }> | null = null;
-  private agentsCacheExpiry = 0;
 
   constructor(private http: HttpClient) {}
 
@@ -51,25 +34,11 @@ export class ApiService {
     data: ParkingZone[];
     success: boolean;
   }> {
-    if (this.parkingZonesCache$ && Date.now() < this.parkingZonesCacheExpiry) {
-      return this.parkingZonesCache$;
-    }
-
-    this.parkingZonesCache$ = this.http
-      .get<{
-        count: number;
-        data: ParkingZone[];
-        success: boolean;
-      }>(`${this.apiUrl}/zones/admin`)
-      .pipe(shareReplay(1));
-
-    this.parkingZonesCacheExpiry = Date.now() + this.CACHE_DURATION;
-    return this.parkingZonesCache$;
-  }
-
-  invalidateParkingZonesCache(): void {
-    this.parkingZonesCache$ = null;
-    this.parkingZonesCacheExpiry = 0;
+    return this.http.get<{
+      count: number;
+      data: ParkingZone[];
+      success: boolean;
+    }>(`${this.apiUrl}/zones/admin`);
   }
 
   getParkingZone(id: string): Observable<ParkingZone> {
@@ -125,11 +94,6 @@ export class ApiService {
     limit?: number;
     skip?: number;
   }): Observable<{ data: Agent[]; success: boolean; count: number }> {
-    // Cache unparameterized requests
-    if (!params && this.agentsCache$ && Date.now() < this.agentsCacheExpiry) {
-      return this.agentsCache$;
-    }
-
     let httpParams = new HttpParams();
     if (params?.isActive !== undefined) {
       httpParams = httpParams.set('isActive', params.isActive.toString());
@@ -144,24 +108,10 @@ export class ApiService {
       httpParams = httpParams.set('skip', params.skip.toString());
     }
 
-    const request$ = this.http
-      .get<{ data: Agent[]; success: boolean; count: number }>(
-        `${this.apiUrl}/agents`,
-        { params: httpParams }
-      )
-      .pipe(shareReplay(1));
-
-    if (!params) {
-      this.agentsCache$ = request$;
-      this.agentsCacheExpiry = Date.now() + this.CACHE_DURATION;
-    }
-
-    return request$;
-  }
-
-  invalidateAgentsCache(): void {
-    this.agentsCache$ = null;
-    this.agentsCacheExpiry = 0;
+    return this.http.get<{ data: Agent[]; success: boolean; count: number }>(
+      `${this.apiUrl}/agents`,
+      { params: httpParams }
+    );
   }
 
   getAgent(id: string): Observable<{ data: Agent; success: boolean }> {
@@ -173,48 +123,38 @@ export class ApiService {
   createAgent(
     agent: CreateAgentDto
   ): Observable<{ data: Agent; success: boolean }> {
-    return this.http
-      .post<{ data: Agent; success: boolean }>(
-        `${this.apiUrl}/agents`,
-        agent
-      )
-      .pipe(tap(() => this.invalidateAgentsCache()));
+    return this.http.post<{ data: Agent; success: boolean }>(
+      `${this.apiUrl}/agents`,
+      agent
+    );
   }
 
   updateAgent(
     id: string,
     agent: UpdateAgentDto
   ): Observable<{ data: Agent; success: boolean }> {
-    return this.http
-      .put<{ data: Agent; success: boolean }>(
-        `${this.apiUrl}/agents/${id}`,
-        agent
-      )
-      .pipe(tap(() => this.invalidateAgentsCache()));
+    return this.http.put<{ data: Agent; success: boolean }>(
+      `${this.apiUrl}/agents/${id}`,
+      agent
+    );
   }
 
   activateAgent(id: string): Observable<{ data: Agent; success: boolean }> {
-    return this.http
-      .patch<{ data: Agent; success: boolean }>(
-        `${this.apiUrl}/agents/${id}/activate`,
-        {}
-      )
-      .pipe(tap(() => this.invalidateAgentsCache()));
+    return this.http.patch<{ data: Agent; success: boolean }>(
+      `${this.apiUrl}/agents/${id}/activate`,
+      {}
+    );
   }
 
   deactivateAgent(id: string): Observable<{ data: Agent; success: boolean }> {
-    return this.http
-      .patch<{ data: Agent; success: boolean }>(
-        `${this.apiUrl}/agents/${id}/deactivate`,
-        {}
-      )
-      .pipe(tap(() => this.invalidateAgentsCache()));
+    return this.http.patch<{ data: Agent; success: boolean }>(
+      `${this.apiUrl}/agents/${id}/deactivate`,
+      {}
+    );
   }
 
   deleteAgent(id: string): Observable<void> {
-    return this.http
-      .delete<void>(`${this.apiUrl}/agents/${id}`)
-      .pipe(tap(() => this.invalidateAgentsCache()));
+    return this.http.delete<void>(`${this.apiUrl}/agents/${id}`);
   }
 
   resetAgentPassword(

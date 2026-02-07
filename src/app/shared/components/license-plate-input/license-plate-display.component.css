@@ -104,16 +104,7 @@
   position: relative;
 }
 
-.government-plate::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 6px;
-  background: #dc2626;
-  border-radius: 2px 2px 0 0;
-}
+
 
 .government-plate .plate-content {
   color: #dc2626;
