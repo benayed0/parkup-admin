@@ -1,11 +1,14 @@
-import * as L from 'leaflet';
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
 
 /**
  * Encodes a list of LatLng points into a Google encoded polyline string.
  * Based on Google's Polyline Algorithm:
  * https://developers.google.com/maps/documentation/utilities/polylinealgorithm
  */
-export function encodePolyline(points: L.LatLng[]): string {
+export function encodePolyline(points: LatLng[]): string {
   let encoded = '';
   let prevLat = 0;
   let prevLng = 0;
@@ -27,8 +30,8 @@ export function encodePolyline(points: L.LatLng[]): string {
 /**
  * Decodes a Google encoded polyline string into a list of LatLng points.
  */
-export function decodePolyline(encoded: string): L.LatLng[] {
-  const points: L.LatLng[] = [];
+export function decodePolyline(encoded: string): LatLng[] {
+  const points: LatLng[] = [];
   let index = 0;
   let lat = 0;
   let lng = 0;
@@ -61,7 +64,7 @@ export function decodePolyline(encoded: string): L.LatLng[] {
     const deltaLng = result & 1 ? ~(result >> 1) : result >> 1;
     lng += deltaLng;
 
-    points.push(L.latLng(lat / 1e5, lng / 1e5));
+    points.push({ lat: lat / 1e5, lng: lng / 1e5 });
   }
 
   return points;

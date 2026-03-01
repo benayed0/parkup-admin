@@ -1,9 +1,16 @@
-import { Component, Input, Output, EventEmitter, AfterViewInit, OnDestroy } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  AfterViewInit,
+  OnDestroy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, takeUntil } from 'rxjs';
-import * as L from 'leaflet';
-import 'leaflet-draw';
+import { Subject, takeUntil, firstValueFrom } from 'rxjs';
+import mapboxgl from 'mapbox-gl';
+import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import { ApiService } from '../../../core/services/api.service';
 import { ZonesService } from '../../../core/services/zones.service';
 import { Zone } from '../../../core/models/zone.model';
@@ -16,25 +23,14 @@ import {
   encodePolyline,
   decodePolyline,
 } from '../../../core/utils/polyline.utils';
-
-function getPolylineLatLngs(polyline: L.Polyline): L.LatLng[] {
-  const latLngs = polyline.getLatLngs();
-  if (latLngs.length > 0 && Array.isArray(latLngs[0])) {
-    return (latLngs as L.LatLng[][]).flat();
-  }
-  return latLngs as L.LatLng[];
-}
+import { environment } from '../../../../environments/environment';
 
 interface DrawnStreet {
-  layer: L.Polyline;
-  type: StreetType;
-  id?: string;
-}
-
-interface ZoneBoundary {
-  layer: L.Polygon;
-  coordinates: number[][];
-  originalCoordinates?: number[][];
+  encodedPolyline: string;
+  leftType: StreetType;
+  rightType: StreetType;
+  name?: string;
+  id?: string; // set after saving to backend
 }
 
 @Component({
@@ -47,40 +43,41 @@ interface ZoneBoundary {
 export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
   @Input({ required: true }) zone!: Zone;
   @Output() closed = new EventEmitter<void>();
-  @Output() boundaryUpdated = new EventEmitter<{ zoneId: string; boundaries: number[][] }>();
+  @Output() boundaryUpdated = new EventEmitter<{
+    zoneId: string;
+    boundaries: number[][];
+  }>();
 
-  map!: L.Map;
-  drawnItems!: L.FeatureGroup;
-  boundaryLayer!: L.FeatureGroup;
-  drawControl!: L.Control.Draw;
-  selectedStreetType: StreetType = StreetType.PAYABLE;
+  map!: mapboxgl.Map;
+  draw!: MapboxDraw;
+
+  selectedLeftType: StreetType = StreetType.PAYABLE;
+  selectedRightType: StreetType = StreetType.PAYABLE;
+  sameTypeBothSides = true;
+  newStreetName = '';
   drawnStreets: DrawnStreet[] = [];
   existingStreets: Street[] = [];
-  zoneBoundary: ZoneBoundary | null = null;
-  isEditingBoundary = false;
   isLoadingStreets = false;
   isSaving = false;
-  isSavingBoundary = false;
   sidebarOpen = false;
   mapMessage: { type: 'success' | 'error'; text: string } | null = null;
+
   private mapInitialized = false;
   private destroy$ = new Subject<void>();
 
   readonly streetTypes = [
-    { value: StreetType.PAYABLE, label: 'Payant', color: '#2196F3' },
-    { value: StreetType.PROHIBITED, label: 'Interdit', color: '#F44336' },
+    { value: StreetType.FREE, label: 'Gratuit', color: '#16A34A' },
+    { value: StreetType.PAYABLE, label: 'Payant', color: '#2563EB' },
+    { value: StreetType.PROHIBITED, label: 'Interdit', color: '#DC2626' },
   ];
 
   constructor(
     private apiService: ApiService,
-    private zonesService: ZonesService
+    private zonesService: ZonesService,
   ) {}
 
   ngAfterViewInit(): void {
-    setTimeout(() => {
-      this.initMap();
-      this.loadExistingStreets(this.zone._id);
-    }, 100);
+    setTimeout(() => this.initMap(), 100);
   }
 
   ngOnDestroy(): void {
@@ -100,23 +97,27 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
 
     const [lng, lat] = this.zone.location.coordinates;
 
-    this.map = L.map('streets-map', {
-      center: [lat, lng],
+    this.map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v12',
+      accessToken: environment.mapboxToken,
+      center: [lng, lat],
       zoom: 16,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(this.map);
+    this.draw = new MapboxDraw({
+      displayControlsDefault: false,
+      controls: { line_string: true, trash: true },
+    });
 
-    this.boundaryLayer = new L.FeatureGroup();
-    this.map.addLayer(this.boundaryLayer);
+    this.map.addControl(this.draw);
 
-    this.drawnItems = new L.FeatureGroup();
-    this.map.addLayer(this.drawnItems);
+    this.map.on('load', () => {
+      this._initLayers();
+      this._displayZoneBoundary();
+      this.loadExistingStreets(this.zone._id);
+    });
 
-    this.displayExistingBoundary();
-    this.initDrawControl();
     this.setupDrawEvents();
     this.mapInitialized = true;
   }
@@ -128,148 +129,217 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private initDrawControl(): void {
-    this.drawControl = new L.Control.Draw({
-      edit: {
-        featureGroup: this.drawnItems,
-        remove: true,
-      },
-      draw: {
-        polygon: {
-          allowIntersection: false,
-          showArea: true,
-          shapeOptions: {
-            color: '#9333ea',
-            weight: 3,
-            opacity: 0.8,
-            fillColor: '#9333ea',
-            fillOpacity: 0.15,
-          },
-        },
-        rectangle: false,
-        circle: false,
-        circlemarker: false,
-        marker: false,
-        polyline: {
-          shapeOptions: {
-            color: this.getStreetColor(this.selectedStreetType),
-            weight: 5,
-            opacity: 0.8,
-          },
-        },
-      },
+  private _initLayers(): void {
+    // Zone boundary source & layers
+    this.map.addSource('zone-boundary', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
     });
-    this.map.addControl(this.drawControl);
+    this.map.addLayer({
+      id: 'zone-fill',
+      type: 'fill',
+      source: 'zone-boundary',
+      paint: { 'fill-color': '#2563EB', 'fill-opacity': 0.08 },
+    }, 'road-label');
+    this.map.addLayer({
+      id: 'zone-stroke',
+      type: 'line',
+      source: 'zone-boundary',
+      paint: { 'line-color': '#2563EB', 'line-width': 2 },
+    }, 'road-label');
+
+    // Streets preview source & layers
+    this.map.addSource('streets-preview', {
+      type: 'geojson',
+      data: this._emptyFeatureCollection(),
+    });
+
+    // Left side: offset +4 (left of travel direction)
+    this.map.addLayer({
+      id: 'streets-left',
+      type: 'line',
+      source: 'streets-preview',
+      paint: {
+        'line-color': [
+          'match',
+          ['get', 'leftType'],
+          'FREE', '#16A34A',
+          'PAYABLE', '#2563EB',
+          'PROHIBITED', '#DC2626',
+          '#888888',
+        ],
+        'line-width': 5,
+        'line-offset': 4,
+        'line-opacity': 0.85,
+      },
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+    }, 'road-label');
+
+    // Right side: offset -4 (right of travel direction)
+    this.map.addLayer({
+      id: 'streets-right',
+      type: 'line',
+      source: 'streets-preview',
+      paint: {
+        'line-color': [
+          'match',
+          ['get', 'rightType'],
+          'FREE', '#16A34A',
+          'PAYABLE', '#2563EB',
+          'PROHIBITED', '#DC2626',
+          '#888888',
+        ],
+        'line-width': 5,
+        'line-offset': -4,
+        'line-opacity': 0.85,
+      },
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+    }, 'road-label');
+  }
+
+  private _displayZoneBoundary(): void {
+    if (!this.zone?.boundaries || this.zone.boundaries.length === 0) return;
+
+    const source = this.map.getSource(
+      'zone-boundary',
+    ) as mapboxgl.GeoJSONSource;
+    source.setData({
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [this.zone.boundaries],
+      },
+    } as GeoJSON.Feature);
+  }
+
+  private _updateStreetPreviewLayers(): void {
+    const features = this.drawnStreets.map((s) => ({
+      type: 'Feature' as const,
+      properties: {
+        leftType: s.leftType,
+        rightType: s.rightType,
+        name: s.name ?? null,
+      },
+      geometry: {
+        type: 'LineString' as const,
+        coordinates: decodePolyline(s.encodedPolyline).map((p) => [p.lng, p.lat]),
+      },
+    }));
+
+    const source = this.map.getSource(
+      'streets-preview',
+    ) as mapboxgl.GeoJSONSource;
+    source.setData({ type: 'FeatureCollection', features });
+  }
+
+  private _emptyFeatureCollection(): GeoJSON.FeatureCollection {
+    return { type: 'FeatureCollection', features: [] };
   }
 
   private setupDrawEvents(): void {
-    this.map.on(L.Draw.Event.CREATED, (e: L.LeafletEvent) => {
-      const event = e as L.DrawEvents.Created;
+    this.map.on('draw.create', async (e: any) => {
+      const feature = e.features?.[0];
+      if (!feature || feature.geometry.type !== 'LineString') return;
 
-      if (event.layerType === 'polygon') {
-        const polygon = event.layer as L.Polygon;
+      const coords: [number, number][] = feature.geometry.coordinates;
+      const encodedPolyline = encodePolyline(
+        coords.map((c) => ({ lat: c[1], lng: c[0] })),
+      );
 
-        if (this.zoneBoundary) {
-          this.boundaryLayer.removeLayer(this.zoneBoundary.layer);
+      // Remove the rough drawn line — replaced by snapped GeoJSON layer
+      this.draw.delete(feature.id);
+
+      // Call backend to get road-snapped geometry
+      let finalEncoded = encodedPolyline;
+      try {
+        const preview = await firstValueFrom(
+          this.apiService.matchPreview(encodedPolyline),
+        );
+        if (preview?.matchedEncodedPolyline) {
+          finalEncoded = preview.matchedEncodedPolyline;
         }
-
-        polygon.setStyle({
-          color: '#9333ea',
-          weight: 3,
-          opacity: 0.8,
-          fillColor: '#9333ea',
-          fillOpacity: 0.15,
-        });
-
-        this.boundaryLayer.addLayer(polygon);
-
-        const latLngs = polygon.getLatLngs()[0] as L.LatLng[];
-        const coordinates = latLngs.map((ll) => [ll.lng, ll.lat]);
-
-        this.zoneBoundary = {
-          layer: polygon,
-          coordinates,
-        };
-
-        this.showMapMessage('success', 'Limite de zone dessinee. Pensez a sauvegarder.');
-      } else {
-        const layer = event.layer as L.Polyline;
-
-        layer.setStyle({
-          color: this.getStreetColor(this.selectedStreetType),
-          weight: 5,
-          opacity: 0.8,
-        });
-
-        this.drawnItems.addLayer(layer);
-        this.drawnStreets.push({
-          layer,
-          type: this.selectedStreetType,
-        });
+      } catch {
+        // Fall back to original drawn polyline
       }
-    });
 
-    this.map.on(L.Draw.Event.DELETED, (e: L.LeafletEvent) => {
-      const event = e as L.DrawEvents.Deleted;
-      event.layers.eachLayer((layer) => {
-        const index = this.drawnStreets.findIndex((s) => s.layer === layer);
-        if (index !== -1) {
-          this.drawnStreets.splice(index, 1);
-        }
+      const rightType = this.sameTypeBothSides
+        ? this.selectedLeftType
+        : this.selectedRightType;
+
+      this.drawnStreets.push({
+        encodedPolyline: finalEncoded,
+        leftType: this.selectedLeftType,
+        rightType,
+        name: this.newStreetName.trim() || undefined,
       });
+
+      this._updateStreetPreviewLayers();
     });
   }
 
-  private getStreetColor(type: StreetType): string {
-    const streetType = this.streetTypes.find((t) => t.value === type);
-    return streetType?.color ?? '#FFFFFF';
+  getStreetColor(type: StreetType): string {
+    return this.streetTypes.find((t) => t.value === type)?.color ?? '#FFFFFF';
   }
 
   // ==================== STREETS ====================
 
   private loadExistingStreets(zoneId: string): void {
     this.isLoadingStreets = true;
-    this.apiService.getStreetsByZone(zoneId).pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ data }) => {
-        this.existingStreets = data;
-        this.displayExistingStreets(data);
-        this.isLoadingStreets = false;
-      },
-      error: (err) => {
-        console.error('Error loading streets:', err);
-        this.showMapMessage('error', 'Erreur lors du chargement des rues');
-        this.isLoadingStreets = false;
-      },
-    });
+    this.apiService
+      .getStreetsByZone(zoneId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: ({ data }) => {
+          this.existingStreets = data;
+          this._displayExistingStreets(data);
+          this.isLoadingStreets = false;
+        },
+        error: (err) => {
+          console.error('Error loading streets:', err);
+          this.showMapMessage('error', 'Erreur lors du chargement des rues');
+          this.isLoadingStreets = false;
+        },
+      });
   }
 
-  private displayExistingStreets(streets: Street[]): void {
+  private _displayExistingStreets(streets: Street[]): void {
     for (const street of streets) {
-      const points = decodePolyline(street.encodedPolyline);
-      const polyline = L.polyline(points, {
-        color: this.getStreetColor(street.type),
-        weight: 5,
-        opacity: 0.8,
-      });
-
-      this.drawnItems.addLayer(polyline);
+      // Prefer road-matched geometry when available
+      const renderPolyline =
+        street.matchedEncodedPolyline ?? street.encodedPolyline;
       this.drawnStreets.push({
-        layer: polyline,
-        type: street.type,
+        encodedPolyline: renderPolyline,
+        leftType: street.leftType,
+        rightType: street.rightType,
+        name: street.name,
         id: street._id,
       });
     }
+    this._updateStreetPreviewLayers();
   }
 
-  onStreetTypeChange(): void {
-    this.map.removeControl(this.drawControl);
-    this.initDrawControl();
+  selectLeftType(type: StreetType): void {
+    this.selectedLeftType = type;
+    if (this.sameTypeBothSides) {
+      this.selectedRightType = type;
+    }
+  }
+
+  selectRightType(type: StreetType): void {
+    this.selectedRightType = type;
+  }
+
+  onSameTypeBothSidesChange(): void {
+    if (this.sameTypeBothSides) {
+      this.selectedRightType = this.selectedLeftType;
+    }
   }
 
   clearMap(): void {
-    this.drawnItems.clearLayers();
     this.drawnStreets = [];
     this.existingStreets = [];
+    this._updateStreetPreviewLayers();
   }
 
   async saveStreets(): Promise<void> {
@@ -281,59 +351,59 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
 
     this.isSaving = true;
 
-    const streetsToCreate: CreateStreetDto[] = newStreets.map((street) => {
-      const points = getPolylineLatLngs(street.layer);
-      const encoded = encodePolyline(points);
-      return {
-        zoneId: this.zone._id,
-        type: street.type,
-        encodedPolyline: encoded,
-        isActive: true,
-      };
-    });
+    const streetsToCreate: CreateStreetDto[] = newStreets.map((street) => ({
+      zoneId: this.zone._id,
+      leftType: street.leftType,
+      rightType: street.rightType,
+      name: street.name,
+      encodedPolyline: street.encodedPolyline,
+      isActive: true,
+    }));
 
-    this.apiService.createStreetsBulk(streetsToCreate).pipe(takeUntil(this.destroy$)).subscribe({
-      next: ({ data: savedStreets }) => {
-        savedStreets.forEach((saved, i) => {
-          newStreets[i].id = saved._id;
-        });
-        this.existingStreets.push(...savedStreets);
-        this.showMapMessage(
-          'success',
-          `${savedStreets.length} rue(s) sauvegardee(s)`
-        );
-        this.isSaving = false;
-      },
-      error: (err) => {
-        console.error('Error saving streets:', err);
-        this.showMapMessage('error', 'Erreur lors de la sauvegarde');
-        this.isSaving = false;
-      },
-    });
+    this.apiService
+      .createStreetsBulk(streetsToCreate)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: ({ data: savedStreets }) => {
+          savedStreets.forEach((saved, i) => {
+            newStreets[i].id = saved._id;
+          });
+          this.existingStreets.push(...savedStreets);
+          this.showMapMessage(
+            'success',
+            `${savedStreets.length} rue(s) sauvegardee(s)`,
+          );
+          this.isSaving = false;
+        },
+        error: (err) => {
+          console.error('Error saving streets:', err);
+          this.showMapMessage('error', 'Erreur lors de la sauvegarde');
+          this.isSaving = false;
+        },
+      });
   }
 
   deleteAllStreets(): void {
-    if (
-      !confirm(
-        `Supprimer toutes les rues de la zone ${this.zone.name}?`
-      )
-    ) {
+    if (!confirm(`Supprimer toutes les rues de la zone ${this.zone.name}?`)) {
       return;
     }
 
     this.isSaving = true;
-    this.apiService.deleteStreetsByZone(this.zone._id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => {
-        this.clearMap();
-        this.showMapMessage('success', 'Toutes les rues ont ete supprimees');
-        this.isSaving = false;
-      },
-      error: (err) => {
-        console.error('Error deleting streets:', err);
-        this.showMapMessage('error', 'Erreur lors de la suppression');
-        this.isSaving = false;
-      },
-    });
+    this.apiService
+      .deleteStreetsByZone(this.zone._id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.clearMap();
+          this.showMapMessage('success', 'Toutes les rues ont ete supprimees');
+          this.isSaving = false;
+        },
+        error: (err) => {
+          console.error('Error deleting streets:', err);
+          this.showMapMessage('error', 'Erreur lors de la suppression');
+          this.isSaving = false;
+        },
+      });
   }
 
   getNewStreetsCount(): number {
@@ -341,170 +411,11 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   getExistingStreetsCount(): number {
-    return this.drawnStreets.filter((s) => s.id).length;
+    return this.drawnStreets.filter((s) => !!s.id).length;
   }
 
-  // ==================== ZONE BOUNDARY ====================
-
-  private displayExistingBoundary(): void {
-    if (!this.zone?.boundaries || this.zone.boundaries.length === 0) {
-      this.zoneBoundary = null;
-      return;
-    }
-
-    const latLngs = this.zone.boundaries.map(
-      (coord) => [coord[1], coord[0]] as [number, number]
-    );
-
-    const polygon = L.polygon(latLngs, {
-      color: '#9333ea',
-      weight: 3,
-      opacity: 0.8,
-      fillColor: '#9333ea',
-      fillOpacity: 0.15,
-    });
-
-    this.boundaryLayer.addLayer(polygon);
-
-    this.zoneBoundary = {
-      layer: polygon,
-      coordinates: this.zone.boundaries,
-    };
-  }
-
-  hasUnsavedBoundary(): boolean {
-    if (!this.zoneBoundary) return false;
-
-    const existingBoundaries = this.zone.boundaries || [];
-    const currentCoordinates = this.zoneBoundary.coordinates;
-
-    if (existingBoundaries.length !== currentCoordinates.length) return true;
-
-    for (let i = 0; i < existingBoundaries.length; i++) {
-      if (
-        existingBoundaries[i][0] !== currentCoordinates[i][0] ||
-        existingBoundaries[i][1] !== currentCoordinates[i][1]
-      ) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  clearBoundary(): void {
-    if (this.zoneBoundary) {
-      this.boundaryLayer.removeLayer(this.zoneBoundary.layer);
-      this.zoneBoundary = null;
-    }
-  }
-
-  saveBoundary(): void {
-    if (!this.zoneBoundary) {
-      this.showMapMessage('error', 'Aucune limite a sauvegarder');
-      return;
-    }
-
-    this.isSavingBoundary = true;
-
-    this.zonesService
-      .update(this.zone._id, {
-        boundaries: this.zoneBoundary.coordinates,
-      })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.zone.boundaries = this.zoneBoundary!.coordinates;
-          this.zoneBoundary!.originalCoordinates = [...this.zoneBoundary!.coordinates];
-          this.boundaryUpdated.emit({
-            zoneId: this.zone._id,
-            boundaries: this.zoneBoundary!.coordinates,
-          });
-          this.showMapMessage('success', 'Limite de zone sauvegardee');
-          this.isSavingBoundary = false;
-        },
-        error: (err) => {
-          console.error('Error saving boundary:', err);
-          this.showMapMessage('error', 'Erreur lors de la sauvegarde de la limite');
-          this.isSavingBoundary = false;
-        },
-      });
-  }
-
-  // ==================== BOUNDARY EDITING ====================
-
-  startEditingBoundary(): void {
-    if (!this.zoneBoundary) return;
-
-    this.zoneBoundary.originalCoordinates = [...this.zoneBoundary.coordinates];
-
-    const layer = this.zoneBoundary.layer as any;
-    if (layer.editing) {
-      layer.editing.enable();
-    }
-
-    this.zoneBoundary.layer.setStyle({
-      color: '#f59e0b',
-      weight: 4,
-      opacity: 1,
-      fillColor: '#f59e0b',
-      fillOpacity: 0.2,
-      dashArray: '5, 10',
-    });
-
-    this.isEditingBoundary = true;
-    this.showMapMessage('success', 'Mode edition active - glissez les points');
-  }
-
-  finishEditingBoundary(): void {
-    if (!this.zoneBoundary) return;
-
-    const layer = this.zoneBoundary.layer as any;
-    if (layer.editing) {
-      layer.editing.disable();
-    }
-
-    const latLngs = this.zoneBoundary.layer.getLatLngs()[0] as L.LatLng[];
-    this.zoneBoundary.coordinates = latLngs.map((ll) => [ll.lng, ll.lat]);
-
-    this.zoneBoundary.layer.setStyle({
-      color: '#9333ea',
-      weight: 3,
-      opacity: 0.8,
-      fillColor: '#9333ea',
-      fillOpacity: 0.15,
-      dashArray: '',
-    });
-
-    this.isEditingBoundary = false;
-    this.showMapMessage('success', 'Modifications appliquees. Pensez a sauvegarder.');
-  }
-
-  cancelEditingBoundary(): void {
-    if (!this.zoneBoundary || !this.zoneBoundary.originalCoordinates) return;
-
-    const layer = this.zoneBoundary.layer as any;
-    if (layer.editing) {
-      layer.editing.disable();
-    }
-
-    const originalLatLngs = this.zoneBoundary.originalCoordinates.map(
-      (coord) => L.latLng(coord[1], coord[0])
-    );
-    this.zoneBoundary.layer.setLatLngs(originalLatLngs);
-    this.zoneBoundary.coordinates = [...this.zoneBoundary.originalCoordinates];
-
-    this.zoneBoundary.layer.setStyle({
-      color: '#9333ea',
-      weight: 3,
-      opacity: 0.8,
-      fillColor: '#9333ea',
-      fillOpacity: 0.15,
-      dashArray: '',
-    });
-
-    this.isEditingBoundary = false;
-    this.showMapMessage('success', 'Modifications annulees');
+  hasBoundary(): boolean {
+    return !!(this.zone?.boundaries && this.zone.boundaries.length > 0);
   }
 
   private showMapMessage(type: 'success' | 'error', text: string): void {

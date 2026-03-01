@@ -86,6 +86,15 @@ export class ApiService {
     return this.http.delete<void>(`${this.apiUrl}/streets/zone/${zoneId}`);
   }
 
+  matchPreview(
+    encodedPolyline: string,
+  ): Observable<{ matchedEncodedPolyline: string | null }> {
+    return this.http.post<{ matchedEncodedPolyline: string | null }>(
+      `${this.apiUrl}/streets/match-preview`,
+      { encodedPolyline },
+    );
+  }
+
   // ==================== AGENTS ====================
 
   getAgents(params?: {

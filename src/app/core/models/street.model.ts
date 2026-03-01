@@ -7,8 +7,11 @@ export enum StreetType {
 export interface Street {
   _id?: string;
   zoneId: string;
-  type: StreetType;
+  leftType: StreetType;
+  rightType: StreetType;
+  name?: string;
   encodedPolyline: string;
+  matchedEncodedPolyline?: string;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -16,7 +19,9 @@ export interface Street {
 
 export interface CreateStreetDto {
   zoneId: string;
-  type: StreetType;
+  leftType: StreetType;
+  rightType: StreetType;
+  name?: string;
   encodedPolyline: string;
   isActive?: boolean;
 }
