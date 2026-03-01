@@ -59,8 +59,16 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
   existingStreets: Street[] = [];
   isLoadingStreets = false;
   isSaving = false;
+  isSavingEdit = false;
   sidebarOpen = false;
   mapMessage: { type: 'success' | 'error'; text: string } | null = null;
+  selectedStreetIndex: number | null = null;
+
+  get selectedStreet(): DrawnStreet | null {
+    return this.selectedStreetIndex !== null
+      ? this.drawnStreets[this.selectedStreetIndex]
+      : null;
+  }
 
   private mapInitialized = false;
   private destroy$ = new Subject<void>();
@@ -154,6 +162,23 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
       data: this._emptyFeatureCollection(),
     });
 
+    // Selected street highlight source & layer (rendered below street layers)
+    this.map.addSource('selected-street', {
+      type: 'geojson',
+      data: this._emptyFeatureCollection(),
+    });
+    this.map.addLayer({
+      id: 'selected-street-highlight',
+      type: 'line',
+      source: 'selected-street',
+      paint: {
+        'line-color': '#FACC15',
+        'line-width': 13,
+        'line-opacity': 0.7,
+      },
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+    }, 'road-label');
+
     // Left side: offset +4 (left of travel direction)
     this.map.addLayer({
       id: 'streets-left',
@@ -195,6 +220,28 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
       },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
     }, 'road-label');
+
+    // Click on a street to select it
+    (['streets-left', 'streets-right'] as const).forEach((layer) => {
+      this.map.on('click', layer, (e: any) => {
+        const index = e.features?.[0]?.properties?.index;
+        if (index !== undefined) this.selectStreet(Number(index));
+      });
+      this.map.on('mouseenter', layer, () => {
+        this.map.getCanvas().style.cursor = 'pointer';
+      });
+      this.map.on('mouseleave', layer, () => {
+        this.map.getCanvas().style.cursor = '';
+      });
+    });
+
+    // Click on empty map area → deselect
+    this.map.on('click', (e: any) => {
+      const hits = this.map.queryRenderedFeatures(e.point, {
+        layers: ['streets-left', 'streets-right'],
+      });
+      if (hits.length === 0) this.deselectStreet();
+    });
   }
 
   private _displayZoneBoundary(): void {
@@ -214,12 +261,13 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private _updateStreetPreviewLayers(): void {
-    const features = this.drawnStreets.map((s) => ({
+    const features = this.drawnStreets.map((s, i) => ({
       type: 'Feature' as const,
       properties: {
         leftType: s.leftType,
         rightType: s.rightType,
         name: s.name ?? null,
+        index: i,
       },
       geometry: {
         type: 'LineString' as const,
@@ -319,27 +367,105 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
     this._updateStreetPreviewLayers();
   }
 
+  selectStreet(index: number): void {
+    this.selectedStreetIndex = index;
+    const street = this.drawnStreets[index];
+    this.selectedLeftType = street.leftType;
+    this.selectedRightType = street.rightType;
+    this.sameTypeBothSides = street.leftType === street.rightType;
+    this._updateSelectedHighlight();
+  }
+
+  deselectStreet(): void {
+    this.selectedStreetIndex = null;
+    this._updateSelectedHighlight();
+  }
+
+  private _updateSelectedHighlight(): void {
+    const source = this.map.getSource('selected-street') as mapboxgl.GeoJSONSource;
+    if (!source) return;
+    if (this.selectedStreetIndex === null) {
+      source.setData(this._emptyFeatureCollection());
+      return;
+    }
+    const street = this.drawnStreets[this.selectedStreetIndex];
+    source.setData({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: decodePolyline(street.encodedPolyline).map((p) => [p.lng, p.lat]),
+        },
+      }],
+    });
+  }
+
+  saveSelectedStreet(): void {
+    if (this.selectedStreetIndex === null) return;
+    const street = this.drawnStreets[this.selectedStreetIndex];
+    if (!street.id) return;
+
+    this.isSavingEdit = true;
+    this.apiService
+      .updateStreet(street.id, { leftType: street.leftType, rightType: street.rightType })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          const existing = this.existingStreets.find((s) => s._id === street.id);
+          if (existing) {
+            existing.leftType = street.leftType;
+            existing.rightType = street.rightType;
+          }
+          this.showMapMessage('success', 'Rue mise a jour');
+          this.isSavingEdit = false;
+        },
+        error: () => {
+          this.showMapMessage('error', 'Erreur lors de la mise a jour');
+          this.isSavingEdit = false;
+        },
+      });
+  }
+
   selectLeftType(type: StreetType): void {
     this.selectedLeftType = type;
     if (this.sameTypeBothSides) {
       this.selectedRightType = type;
     }
+    if (this.selectedStreetIndex !== null) {
+      this.drawnStreets[this.selectedStreetIndex].leftType = type;
+      if (this.sameTypeBothSides) {
+        this.drawnStreets[this.selectedStreetIndex].rightType = type;
+      }
+      this._updateStreetPreviewLayers();
+    }
   }
 
   selectRightType(type: StreetType): void {
     this.selectedRightType = type;
+    if (this.selectedStreetIndex !== null) {
+      this.drawnStreets[this.selectedStreetIndex].rightType = type;
+      this._updateStreetPreviewLayers();
+    }
   }
 
   onSameTypeBothSidesChange(): void {
     if (this.sameTypeBothSides) {
       this.selectedRightType = this.selectedLeftType;
+      if (this.selectedStreetIndex !== null) {
+        this.drawnStreets[this.selectedStreetIndex].rightType = this.selectedLeftType;
+        this._updateStreetPreviewLayers();
+      }
     }
   }
 
   clearMap(): void {
     this.drawnStreets = [];
     this.existingStreets = [];
+    this.selectedStreetIndex = null;
     this._updateStreetPreviewLayers();
+    this._updateSelectedHighlight();
   }
 
   async saveStreets(): Promise<void> {
@@ -394,6 +520,7 @@ export class StreetsEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
+          this.selectedStreetIndex = null;
           this.clearMap();
           this.showMapMessage('success', 'Toutes les rues ont ete supprimees');
           this.isSaving = false;

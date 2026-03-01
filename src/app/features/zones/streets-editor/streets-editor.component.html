@@ -29,7 +29,19 @@
 
     <!-- Street Side Types -->
     <div class="section">
-      <label>Type de stationnement</label>
+      @if (selectedStreet !== null) {
+      <div class="selected-street-banner">
+        <span class="selected-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          {{ selectedStreet.name || 'Rue selectionnee' }}
+        </span>
+        <button class="deselect-btn" (click)="deselectStreet()" title="Deselectionner">×</button>
+      </div>
+      }
+      <label>{{ selectedStreet !== null ? 'Modifier le type' : 'Type de stationnement' }}</label>
 
       <div class="side-toggle">
         <label class="toggle-label">
@@ -87,6 +99,17 @@
           }
         </div>
       </div>
+      }
+
+      <!-- Save button for existing selected street -->
+      @if (selectedStreet !== null && selectedStreet.id) {
+      <button
+        class="btn btn-primary btn-sm apply-btn"
+        [disabled]="isSavingEdit"
+        (click)="saveSelectedStreet()"
+      >
+        @if (isSavingEdit) { Sauvegarde... } @else { Appliquer les modifications }
+      </button>
       }
     </div>
 

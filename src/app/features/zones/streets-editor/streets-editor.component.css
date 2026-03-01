@@ -210,6 +210,49 @@
   border: 2px solid rgba(0, 0, 0, 0.2);
 }
 
+/* Selected Street Banner */
+.selected-street-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.selected-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.813rem;
+  font-weight: 500;
+  color: #92400e;
+}
+
+.deselect-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #92400e;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.deselect-btn:hover {
+  opacity: 1;
+}
+
+.apply-btn {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+  justify-content: center;
+}
+
 /* Side Toggle & Selectors */
 .side-toggle {
   margin-bottom: var(--spacing-sm);
